@@ -542,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiLevelSelect = document.getElementById('ai-level');
 
     aiCheckbox.addEventListener('change', () => {
-        aiLevelSelect.style.display = aiCheckbox.checked ? 'block' : 'none';
+        aiLevelSelect.style.display = aiCheckbox.checked ? 'inline-block' : 'none';
         // Reiniciar para aplicar cambio
         initGame();
     });
