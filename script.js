@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPlayerIndex;
     let board = []; // tablero, 8x8
     let selectedPiece = null; // pieza jugador seleccionada
+    let validMoves = []; 
 
     // DOM
     const player1NameElem = document.getElementById('player1-name');
@@ -30,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeBoard();
         currentPlayerIndex = 0; // Blancas empiezan
         selectedPiece = null;
+        validMoves = [];
         drawGame();
         updateTurnIndicator();
     }
@@ -42,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (storedPlayers) {
             players = storedPlayers;
         } else {
-            const player1Name = prompt("Nombre del Jugador 1 (Blancas):", "Jugador 1");
-            const player2Name = prompt("Nombre del Jugador 2 (Negras):", "Jugador 2");
+            const player1Name = prompt("Jugador 1 (Blancas):", "Jugador 1");
+            const player2Name = prompt("Jugador 2 (Negras):", "Jugador 2");
             players = [
                 { name: player1Name || "Jugador 1", score: 0, color: 'white' },
                 { name: player2Name || "Jugador 2", score: 0, color: 'black' }
@@ -96,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         drawBoard();
         drawPieces();
         highlightSelectedPiece();
+        highlightValidMoves();
     }
 
     function drawBoard() {
@@ -139,6 +142,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function highlightValidMoves() {
+        ctx.fillStyle = 'rgba(76, 175, 80, 0.5)'; // Círculo verde
+        validMoves.forEach(move => {
+            const x = move.col * squareSize + squareSize / 2;
+            const y = move.row * squareSize + squareSize / 2;
+            ctx.beginPath();
+            ctx.arc(x, y, squareSize / 4, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    }
+
     // 7. clics en canvas
     function handleCanvasClick(event) {
         const rect = canvas.getBoundingClientRect();
@@ -151,32 +165,38 @@ document.addEventListener('DOMContentLoaded', () => {
         const clickedPieceKey = board[row][col];
 
         if (selectedPiece) {
-            // movimientos
-            const targetPieceKey = board[row][col];
-            if (targetPieceKey && getPieceColor(targetPieceKey) === players[currentPlayerIndex].color) {
-                // otra pieza selecciona
-                selectedPiece = { piece: clickedPieceKey, row, col };
+            const isValidMove = validMoves.some(move => move.row === row && move.col === col);
+            if (isValidMove) {
+                makeMove(selectedPiece.row, selectedPiece.col, row, col);
             } else {
-                movePiece(selectedPiece.row, selectedPiece.col, row, col);
-            }
-        } else {
-            // no hay pieza, selecciona
-            if (clickedPieceKey) {
-                const pieceColor = getPieceColor(clickedPieceKey);
-                if (pieceColor === players[currentPlayerIndex].color) {
-                    selectedPiece = { piece: clickedPieceKey, row, col };
+                // clic pieza suya, la selecciona
+                if (clickedPieceKey && getPieceColor(clickedPieceKey) === players[currentPlayerIndex].color) {
+                    selectPiece(row, col);
+                } else {
+                    // Deselecciona si inválido
+                    selectedPiece = null;
+                    validMoves = [];
                 }
             }
+        } else {
+            selectPiece(row, col);
         }
         drawGame();
     }
 
+    function selectPiece(row, col) {
+        const pieceKey = board[row][col];
+        if (pieceKey && getPieceColor(pieceKey) === players[currentPlayerIndex].color) {
+            selectedPiece = { piece: pieceKey, row, col };
+            validMoves = getValidMoves(pieceKey, row, col); // movimientos válidos
+        }
+    }
+
     // 8. Mueve piezas en estructura
-    function movePiece(fromRow, fromCol, toRow, toCol) {
+    function makeMove(fromRow, fromCol, toRow, toCol) {
         const pieceToMove = board[fromRow][fromCol];
         const targetPiece = board[toRow][toCol];
 
-        // Comprueba si captura al rey
         if (targetPiece.toLowerCase() === 'k') {
             endGame();
             return;
@@ -185,10 +205,133 @@ document.addEventListener('DOMContentLoaded', () => {
         board[toRow][toCol] = pieceToMove;
         board[fromRow][fromCol] = '';
         selectedPiece = null;
+        validMoves = [];
         
-        // Cambia turno
         currentPlayerIndex = 1 - currentPlayerIndex;
         updateTurnIndicator();
+    }
+
+    function getValidMoves(piece, row, col) {
+        const pieceType = piece.toLowerCase();
+        switch (pieceType) {
+            case 'p': return getPawnMoves(row, col, getPieceColor(piece));
+            case 'r': return getRookMoves(row, col);
+            case 'n': return getKnightMoves(row, col);
+            case 'b': return getBishopMoves(row, col);
+            case 'q': return getQueenMoves(row, col);
+            case 'k': return getKingMoves(row, col);
+            default: return [];
+        }
+    }
+
+    function getPawnMoves(row, col, color) {
+        const moves = [];
+        const direction = color === 'white' ? -1 : 1;
+        const startRow = color === 'white' ? 6 : 1;
+        
+        // Hacia adelante
+        if (board[row + direction][col] === '') {
+            moves.push({ row: row + direction, col });
+            // Movimiento doble inicio
+            if (row === startRow && board[row + 2 * direction][col] === '') {
+                moves.push({ row: row + 2 * direction, col });
+            }
+        }
+        
+        // Capturas diagonal
+        [-1, 1].forEach(side => {
+            if (col + side >= 0 && col + side < 8) {
+                const target = board[row + direction][col + side];
+                if (target && getPieceColor(target) !== color) {
+                    moves.push({ row: row + direction, col: col + side });
+                }
+            }
+        });
+
+        return moves;
+    }
+
+    function getRookMoves(row, col) {
+        const moves = [];
+        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // Arriba, Abajo, Izquierda, Derecha
+        return getSlidingMoves(row, col, directions);
+    }
+    
+    function getBishopMoves(row, col) {
+        const moves = [];
+        const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Diagonales
+        return getSlidingMoves(row, col, directions);
+    }
+
+    function getQueenMoves(row, col) {
+        // Reina combina los movimientos de la torre y el alfil
+        return getRookMoves(row, col).concat(getBishopMoves(row, col));
+    }
+    
+    function getKnightMoves(row, col) {
+        const moves = [];
+        const directions = [
+            [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+            [1, -2], [1, 2], [2, -1], [2, 1]
+        ];
+        
+        directions.forEach(dir => {
+            const newRow = row + dir[0];
+            const newCol = col + dir[1];
+            if (isValidSquare(newRow, newCol)) {
+                const target = board[newRow][newCol];
+                if (target === '' || getPieceColor(target) !== players[currentPlayerIndex].color) {
+                    moves.push({ row: newRow, col: newCol });
+                }
+            }
+        });
+        return moves;
+    }
+    
+    function getKingMoves(row, col) {
+        const moves = [];
+        const directions = [
+            [-1, -1], [-1, 0], [-1, 1], [0, -1],
+            [0, 1], [1, -1], [1, 0], [1, 1]
+        ];
+        
+        directions.forEach(dir => {
+            const newRow = row + dir[0];
+            const newCol = col + dir[1];
+            if (isValidSquare(newRow, newCol)) {
+                const target = board[newRow][newCol];
+                if (target === '' || getPieceColor(target) !== players[currentPlayerIndex].color) {
+                    moves.push({ row: newRow, col: newCol });
+                }
+            }
+        });
+        return moves;
+    }
+
+    // Función auxiliar para piezas deslizantes (Torre, Alfil, Reina)
+    function getSlidingMoves(row, col, directions) {
+        const moves = [];
+        const ownColor = players[currentPlayerIndex].color;
+        
+        directions.forEach(dir => {
+            let newRow = row + dir[0];
+            let newCol = col + dir[1];
+            
+            while(isValidSquare(newRow, newCol)) {
+                const target = board[newRow][newCol];
+                if (target === '') {
+                    moves.push({ row: newRow, col: newCol });
+                } else {
+                    if (getPieceColor(target) !== ownColor) {
+                        moves.push({ row: newRow, col: newCol }); // Puede capturar
+                    }
+                    break; // Detenerse al encontrar cualquier pieza
+                }
+                newRow += dir[0];
+                newCol += dir[1];
+            }
+        });
+        return moves;
     }
 
     // 9. Termina partida y actualiza marcador
@@ -202,6 +345,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm("¿Jugar otra vez?")) {
             initGame();
         }
+    }
+
+    // Función de ayuda para verificar si una casilla está dentro del tablero
+    function isValidSquare(row, col) {
+        return row >= 0 && row < 8 && col >= 0 && col < 8;
     }
     
     // saber color de pieza
