@@ -22,8 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const player2InfoElem = document.getElementById('player2-info');
     const mainMenuButton = document.getElementById('main-menu-button');
 
-    const size = 400;
-    const squareSize = size / 8;
+    let size;
+    let squareSize;
+
     let players = [];
     let currentPlayerIndex;
     let board = [];
@@ -42,6 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const pieceValues = {
     'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100 
     };
+
+    function resizeCanvas() {
+        const availableWidth = window.innerWidth * 0.95;
+        const newSize = Math.min(availableWidth, 600);
+        size = Math.floor(newSize / 8) * 8;
+        canvas.width = size;
+        canvas.height = size;
+        squareSize = size / 8;
+        if (board.length > 0) {
+            drawGame();
+        }
+    }
 
     //Funciones IA
 
@@ -114,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         aiLevelSelection.classList.add('hidden');
         startAiButton.textContent = "Contra la PC";
-        startAiButton.style.backgroundColor = ''
         isAiSelectorVisible = false;
         
         displayScoresSummary();
@@ -141,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initGame() {
+
+        resizeCanvas();
+
         initializeBoard();
         currentPlayerIndex = 0;
         selectedPiece = null;
@@ -681,7 +696,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAiSelectorVisible) {
             aiLevelSelection.classList.remove('hidden');
             startAiButton.textContent = "Iniciar Partida vs PC";
-            startAiButton.style.backgroundColor = '#4CAF50';
             isAiSelectorVisible = true;
         } else {
             startGame(true);
@@ -698,6 +712,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('click', handleCanvasClick);
+
+    window.addEventListener('resize', resizeCanvas);
 
     showStartScreen();
 
