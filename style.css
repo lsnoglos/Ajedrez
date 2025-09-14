@@ -1,0 +1,47 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #333;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+}
+
+#game-info {
+    display: flex;
+    justify-content: space-between;
+    width: 400px;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.player-info.active {
+    font-weight: bold;
+    color: #4CAF50; /* Verde para indicar el turno */
+}
+
+#chessBoard {
+    border: 3px solid #555;
+}
+
+.controls {
+    margin-top: 15px;
+}
+
+button {
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    margin: 0 5px;
+}
+
+button:hover {
+    background-color: #45a049;
+}
