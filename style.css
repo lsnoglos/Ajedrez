@@ -56,13 +56,8 @@ button:hover {
 #ai-controls {
     width: 400px;
     margin-bottom: 10px;
-    
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 15px;
+    text-align: center;
 }
-
 #ai-controls label {
     font-size: 1.1em;
     cursor: pointer;
@@ -71,4 +66,47 @@ button:hover {
     margin-left: 10px;
     padding: 5px;
     font-size: 1em;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#start-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.scores-summary {
+    background-color: #3a3a3a;
+    padding: 10px 30px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.scores-summary h2 {
+    margin-top: 0;
+}
+
+.menu-buttons button {
+    margin: 10px;
+    padding: 15px 30px;
+    font-size: 1.2em;
+}
+
+#ai-level-selection {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+#ai-level-selection select {
+    padding: 5px;
+    font-size: 1em;
+}
+
+#game-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
