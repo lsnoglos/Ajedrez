@@ -11,6 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedPiece = null; // pieza jugador seleccionada
     let validMoves = []; 
 
+    let isAiActive = false;
+    let aiDifficulty = 'easy';
+    let isAiThinking = false; //  bloquear jugador
+
     // DOM
     const player1NameElem = document.getElementById('player1-name');
     const player1ScoreElem = document.getElementById('player1-score');
@@ -26,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'r': '♖', 'n': '♘', 'b': '♗', 'q': '♕', 'k': '♔', 'p': '♙'  // Blancas
     };
 
+    const pieceValues = {
+    'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100 
+    };
+
     function initGame() {
         setupPlayers();
         initializeBoard();
@@ -36,25 +44,39 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTurnIndicator();
     }
 
-    // 2. Configura jugadores..
+    // 2. Configura jugadores..    
     function setupPlayers() {
-        // localStorage
-        const storedPlayers = JSON.parse(localStorage.getItem('chessPlayers'));
+        isAiActive = document.getElementById('ai-checkbox').checked;
+        aiDifficulty = document.getElementById('ai-level').value;
 
-        if (storedPlayers) {
+        const storedPlayers = JSON.parse(localStorage.getItem('chessPlayers'));
+        let player1Name, player2Name;
+
+        if (storedPlayers && !isAiActive) { // si no IA
             players = storedPlayers;
         } else {
-            const player1Name = prompt("Jugador 1 (Blancas):", "Jugador 1");
-            const player2Name = prompt("Jugador 2 (Negras):", "Jugador 2");
+            player1Name = prompt("Jugador 1 (Blancas):", "Jugador 1") || "Jugador 1";
+            
+            if (isAiActive) {
+                player2Name = `PC (${aiDifficulty.charAt(0).toUpperCase() + aiDifficulty.slice(1)})`;
+            } else {
+                player2Name = prompt("Jugador 2 (Negras):", "Jugador 2") || "Jugador 2";
+            }
+
             players = [
-                { name: player1Name || "Jugador 1", score: 0, color: 'white' },
-                { name: player2Name || "Jugador 2", score: 0, color: 'black' }
+                { name: player1Name, score: 0, color: 'white', isAI: false },
+                { name: player2Name, score: 0, color: 'black', isAI: isAiActive }
             ];
-            saveScores();
+            
+            // No guardamos localStorage si juega la IA
+            if (!isAiActive) {
+                saveScores();
+            }
         }
         updateScoreboard();
     }
-    
+
+
     // 3. Guarda en localStorage
     function saveScores() {
         localStorage.setItem('chessPlayers', JSON.stringify(players));
@@ -155,6 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7. clics en canvas
     function handleCanvasClick(event) {
+
+        if (isAiThinking) return;
+
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
@@ -209,6 +234,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         currentPlayerIndex = 1 - currentPlayerIndex;
         updateTurnIndicator();
+        drawGame();
+
+        if (players[currentPlayerIndex].isAI) {
+            triggerAiMove();
+        }
     }
 
     function getValidMoves(piece, row, col) {
@@ -357,6 +387,143 @@ document.addEventListener('DOMContentLoaded', () => {
         return (pieceKey === pieceKey.toUpperCase()) ? 'black' : 'white';
     }
 
+    // AI .....................
+    function triggerAiMove() {
+        isAiThinking = true;
+        // simular que piensa
+        setTimeout(() => {
+            const bestMove = calculateBestMove();
+            if (bestMove) {
+                makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
+            }
+            isAiThinking = false;
+        }, 500);
+    }
+
+    function calculateBestMove() {
+        switch (aiDifficulty) {
+            case 'easy':
+                return getEasyMove();
+            case 'intermediate':
+                return getIntermediateMove();
+            case 'expert':
+                return getExpertMove();
+            default:
+                return getEasyMove();
+        }
+    }
+
+    //fácil
+    function getEasyMove() {
+        const allMoves = getAllPossibleMoves('black');
+        if (allMoves.length === 0) return null;
+        const randomIndex = Math.floor(Math.random() * allMoves.length);
+        return allMoves[randomIndex];
+    }
+
+    // Intermedio
+    function getIntermediateMove() {
+        const allMoves = getAllPossibleMoves('black');
+        if (allMoves.length === 0) return null;
+
+        let bestMoves = [];
+        let maxScore = -1;
+
+        for (const move of allMoves) {
+            const targetPiece = board[move.to.row][move.to.col];
+            let moveScore = 0;
+            if (targetPiece !== '') {
+                moveScore = pieceValues[targetPiece.toLowerCase()] || 0;
+            }
+
+            if (moveScore > maxScore) {
+                maxScore = moveScore;
+                bestMoves = [move];
+            } else if (moveScore === maxScore) {
+                bestMoves.push(move);
+            }
+        }
+
+        if (maxScore <= 0) {
+            return getEasyMove();
+        }
+        
+        const randomIndex = Math.floor(Math.random() * bestMoves.length);
+        return bestMoves[randomIndex];
+    }
+
+    // Experto
+    function getExpertMove() {
+        const allMoves = getAllPossibleMoves('black');
+        if (allMoves.length === 0) return null;
+        
+        let bestMoves = [];
+        let bestScore = -Infinity;
+
+        for (const move of allMoves) {
+            // Simula el movimiento
+            const originalPiece = board[move.to.row][move.to.col];
+            board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+            board[move.from.row][move.from.col] = '';
+
+            // Evalúa
+            const score = evaluateBoard();
+
+            // Deshace el movimiento
+            board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
+            board[move.to.row][move.to.col] = originalPiece;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestMoves = [move];
+            } else if (score === bestScore) {
+                bestMoves.push(move);
+            }
+        }
+        
+        // Elige movimientos al azar
+        const randomIndex = Math.floor(Math.random() * bestMoves.length);
+        return bestMoves[randomIndex];
+    }
+
+    //
+    function getAllPossibleMoves(color) {
+        const allMoves = [];
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board[row][col];
+                if (piece && getPieceColor(piece) === color) {
+                    const moves = getValidMoves(piece, row, col);
+                    moves.forEach(move => {
+                        allMoves.push({
+                            from: { row, col },
+                            to: { row: move.row, col: move.col }
+                        });
+                    });
+                }
+            }
+        }
+        return allMoves;
+    }
+
+    //
+    function evaluateBoard() {
+        let totalScore = 0;
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board[row][col];
+                if (piece) {
+                    const value = pieceValues[piece.toLowerCase()] || 0;
+                    if (getPieceColor(piece) === 'black') {
+                        totalScore += value; // La IA (negra) suma
+                    } else {
+                        totalScore -= value; // El jugador (blanco) resta
+                    }
+                }
+            }
+        }
+        return totalScore;
+    }
 
     // Events
     canvas.addEventListener('click', handleCanvasClick);
@@ -371,5 +538,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const aiCheckbox = document.getElementById('ai-checkbox');
+    const aiLevelSelect = document.getElementById('ai-level');
+
+    aiCheckbox.addEventListener('change', () => {
+        aiLevelSelect.style.display = aiCheckbox.checked ? 'inline-block' : 'none';
+        // Reiniciar para aplicar cambio
+        initGame();
+    });
+
+    aiLevelSelect.addEventListener('change', () => {
+        // Reiniciar para cambio de dificultad
+        initGame();
+    });
+
     initGame();
-});
+}); 

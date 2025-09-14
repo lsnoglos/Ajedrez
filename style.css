@@ -52,3 +52,18 @@ button {
 button:hover {
     background-color: #a1a1a1;
 }
+
+#ai-controls {
+    width: 400px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+#ai-controls label {
+    font-size: 1.1em;
+    cursor: pointer;
+}
+#ai-controls select {
+    margin-left: 10px;
+    padding: 5px;
+    font-size: 1em;
+}
