@@ -56,8 +56,13 @@ button:hover {
 #ai-controls {
     width: 400px;
     margin-bottom: 10px;
-    text-align: center;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
 }
+
 #ai-controls label {
     font-size: 1.1em;
     cursor: pointer;
