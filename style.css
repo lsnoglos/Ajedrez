@@ -56,11 +56,11 @@ button:hover {
 #ai-controls {
     width: 400px;
     margin-bottom: 10px;
-
+    
     display: flex;
-    justify-content: left;
-    align-items: left;
-    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
 }
 
 #ai-controls label {
