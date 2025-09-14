@@ -13,8 +13,11 @@ body {
 #game-info {
     display: flex;
     justify-content: space-between;
-    width: 400px;
-    margin-bottom: 5%;
+
+    width: 95%;
+    /* max-width: 400px; */
+
+    margin-bottom: 15px;
     font-size: 1.1em;
 }
 
@@ -54,10 +57,13 @@ button:hover {
 }
 
 #ai-controls {
-    width: 400px;
+    width: 95%;
+    /* max-width: 400px; */
+
     margin-bottom: 10px;
     text-align: center;
 }
+
 #ai-controls label {
     font-size: 1.1em;
     cursor: pointer;
