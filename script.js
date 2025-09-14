@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const player1ScoreElem = document.getElementById('player1-score');
     const player2NameElem = document.getElementById('player2-name');
     const player2ScoreElem = document.getElementById('player2-score');
-    const currentPlayerElem = document.getElementById('current-player');
+    //const currentPlayerElem = document.getElementById('current-player');
     const player1InfoElem = document.getElementById('player1-info');
     const player2InfoElem = document.getElementById('player2-info');
 
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateTurnIndicator() {
-        currentPlayerElem.textContent = players[currentPlayerIndex].name;
+        //currentPlayerElem.textContent = players[currentPlayerIndex].name;
         if (currentPlayerIndex === 0) {
             player1InfoElem.classList.add('active');
             player2InfoElem.classList.remove('active');
