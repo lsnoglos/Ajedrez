@@ -7,33 +7,46 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Ajedrez</h1>
 
-    <div id="game-info">
-        <div id="player1-info" class="player-info">
-            <span id="player1-name"></span>: <span id="player1-score">0</span> victorias
+    <div id="start-screen">
+        <h1>Ajedrez</h1>
+        <div class="scores-summary">
+            <h2>Puntuaciones (2 Jugadores)</h2>
+            <p id="summary-p1">Jugador 1: 0 victorias</p>
+            <p id="summary-p2">Jugador 2: 0 victorias</p>
         </div>
-        <div id="player2-info" class="player-info">
-            <span id="player2-name"></span>: <span id="player2-score">0</span> victorias
+        <div class="menu-buttons">
+            <button id="start-2p-button">2 Jugadores</button>
+            <button id="start-ai-button">Contra la PC</button>
+        </div>
+        <div id="ai-level-selection" class="hidden">
+            <label for="ai-level-start">Dificultad:</label>
+            <select id="ai-level-start">
+                <option value="easy">Fácil</option>
+                <option value="intermediate">Intermedio</option>
+                <option value="expert">Experto</option>
+            </select>
+        </div>
+        <div class="controls-start">
+             <button id="reset-scores-start">Borrar Puntuaciones</button>
         </div>
     </div>
 
-    <div id="ai-controls">
-        <label>
-            <input type="checkbox" id="ai-checkbox"> PC
-        </label>
-        <select id="ai-level" style="display: none;">
-            <option value="easy">Fácil</option>
-            <option value="intermediate">Intermedio</option>
-            <option value="expert">Experto</option>
-        </select>
-    </div>
+    <div id="game-screen" class="hidden">
+        <div id="game-info">
+            <div id="player1-info" class="player-info">
+                <span id="player1-name"></span>: <span id="player1-score">0</span> victorias
+            </div>
+            <div id="player2-info" class="player-info">
+                <span id="player2-name"></span>: <span id="player2-score">0</span> victorias
+            </div>
+        </div>
 
-    <canvas id="chessBoard" width="400" height="400px"></canvas>
+        <canvas id="chessBoard" width="400" height="400px"></canvas>
 
-    <div class="controls">
-        <button id="reset-game">Reiniciar Partida</button>
-        <button id="reset-scores">Borrar Puntuaciones</button>
+        <div class="controls">
+            <button id="main-menu-button">Volver al Menú</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
