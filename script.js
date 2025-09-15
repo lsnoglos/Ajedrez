@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100
     };
 
-    const searchDepth = 8;
+    const searchDepth = 4;
 
     function playSound(sound) {
         sound.currentTime = 0;
@@ -918,10 +918,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (aiDifficulty) {
             case 'easy':
-                return getEasyMove();
+                currentSearchDepth = 1;
+                break;
 
             case 'intermediate':
-                currentSearchDepth = 4;
+                currentSearchDepth = 3;
                 break;
 
             case 'expert':
