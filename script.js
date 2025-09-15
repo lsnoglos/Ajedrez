@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         aiLevelSelection.classList.add('hidden');
         startAiButton.textContent = "Contra la PC";
+        startAiButton.style.backgroundColor = '';
         isAiSelectorVisible = false;
         
         displayScoresSummary();
@@ -524,13 +525,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 50);
     }
 
+    // REEMPLAZA ESTA FUNCIÓN
     function calculateBestMove() {
+        let currentSearchDepth;
+
         switch (aiDifficulty) {
-            case 'easy': return getEasyMove();
-            case 'intermediate': return getIntermediateMove();
-            case 'expert': return getExpertMove();
-            default: return getEasyMove();
+            case 'easy':
+                return getEasyMove();
+            
+            case 'intermediate':
+                currentSearchDepth = 1;
+                break;
+
+            case 'expert':
+                currentSearchDepth = searchDepth;
+                break;
+            
+            default:
+                return getEasyMove();
         }
+        return getExpertMove(currentSearchDepth);
     }
 
     //fácil
@@ -566,17 +580,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Experto
-    function getExpertMove() {
+    function getExpertMove(depth) {
         let bestScore = -Infinity;
         let bestMoves = [];
         const allMoves = getAllPossibleMoves('black');
+
         for (const move of allMoves) {
+            // Simula el movimiento
             const originalPiece = board[move.to.row][move.to.col];
             board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
             board[move.from.row][move.from.col] = '';
-            const score = minimax(searchDepth - 1, -Infinity, Infinity, false);
+
+            // Llama a minimax con profundidad
+            const score = minimax(depth - 1, -Infinity, Infinity, false);
+
+            // Deshace el movimiento
             board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
             board[move.to.row][move.to.col] = originalPiece;
+
             if (score > bestScore) {
                 bestScore = score;
                 bestMoves = [move];
@@ -584,8 +605,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 bestMoves.push(move);
             }
         }
+        
         if (bestMoves.length === 0) return null;
-        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+        const randomIndex = Math.floor(Math.random() * bestMoves.length);
+        return bestMoves[randomIndex];
     }
 
     // FUNCIÓN MINIMAX PRINCIPAL con Poda Alfa-Beta
@@ -696,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAiSelectorVisible) {
             aiLevelSelection.classList.remove('hidden');
             startAiButton.textContent = "Iniciar Partida vs PC";
-            startAiButton.backgroundColor = "#64B9B3";
+            startAiButton.style.backgroundColor = "#C4845A";
             isAiSelectorVisible = true;
         } else {
             startGame(true);
