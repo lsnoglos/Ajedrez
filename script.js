@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDwzJmVxbSOd6SJ5iJ-_zphwGfVXgxbni7E2R-ExYCz5h3jJG92_WiaIzOzhOfIpaAyg/exec';
-
     const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
 
@@ -28,6 +26,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const winnerMessage = document.getElementById('winner-message');
     const modalMenuButton = document.getElementById('modal-menu-button');
 
+    const menuMusic = document.getElementById('menu-music');
+    const menuMusic2 = document.getElementById('menu-music2');
+    const gameMusic = document.getElementById('game-music');
+    const moveSound = new Audio('assets/move.wav');
+    const captureSound = new Audio('assets/hit.mp3');
+
+    gameMusic.volume = 0.6;
+    menuMusic2.volume = 0.6;
+
+    let hasInteracted = false;
+    document.body.addEventListener('click', () => {
+        hasInteracted = true;
+    }, { once: true });
+
     let size;
     let squareSize;
 
@@ -37,22 +49,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedPiece = null;
     let validMoves = [];
     let isAiActive = false;
-    let aiDifficulty = 'easy';
+    let aiDifficulty = 'expert';
     let isAiThinking = false;
 
     let isAnimating = false;
     let animationDetails = null;
-    const globalJumpDuration = 450;
-    const globalJumpHeight = 2;
+    const globalJumpDuration = 500;
+    const globalJumpHeight = 0.8;
     const globalJumpParticles = 30;
     const globalJumpGravity = 0.2;
     let particleExplosion = null;
 
     //ONLINE
-
-    // ===============================================
-    // ===== LÓGICA DE CONEXIÓN EN LÍNEA (FINAL) =====
-    // ===============================================
 
     const startOnlineButton = document.getElementById('start-online-button');
     const onlineSetupSection = document.getElementById('online-setup');
@@ -61,20 +69,41 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectByNameButton = document.getElementById('connect-by-name-button');
     const connectionStatus = document.getElementById('connection-status');
 
+    const db = firebase.database();
+
     let peer;
     let connection;
     let myPlayerColor = null;
     let myName = '';
+    let opponentName = '';
+
+    const pieces = {
+        'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟', // Negras
+        'r': '♖', 'n': '♘', 'b': '♗', 'q': '♕', 'k': '♔', 'p': '♙'  // Blancas
+    };
+
+    const pieceValues = {
+        'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100
+    };
+
+    const searchDepth = 3;
+
+    function playSound(sound) {
+        sound.currentTime = 0;
+        sound.play();
+    }
 
     function initializeOnlineMode() {
         onlineSetupSection.classList.remove('hidden');
-        
-        if (!peer) {
+        connectByNameButton.disabled = true; // Deshabilita el botón al principio
+
+        if (!peer || peer.disconnected) {
             connectionStatus.textContent = 'Estableciendo conexión segura...';
             peer = new Peer();
 
             peer.on('open', (id) => {
-                connectionStatus.textContent = 'Conexión establecida. Ingresa los nombres.';
+                connectionStatus.textContent = 'Conexión lista. Ingresa los nombres.';
+                connectByNameButton.disabled = false; // Habilita el botón cuando estemos listos
             });
             
             peer.on('connection', (conn) => {
@@ -87,107 +116,67 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error(err);
                 connectionStatus.textContent = `Error: ${err.message}`;
             });
+        } else {
+            // Si el objeto peer ya existe y está conectado
+            connectionStatus.textContent = 'Conexión lista. Ingresa los nombres.';
+            connectByNameButton.disabled = false;
         }
     }
 
     function registerAndConnect() {
-        myName = myNameInput.value.trim();
-        const opponentName = opponentNameInput.value.trim();
+        myName = myNameInput.value.trim().toLowerCase();
+        opponentName = opponentNameInput.value.trim().toLowerCase();
 
         if (!myName || !opponentName) {
             connectionStatus.textContent = 'Debes ingresar ambos nombres.';
             return;
         }
+
         if (!peer || !peer.id) {
-            connectionStatus.textContent = 'Esperando ID de conexión. Intenta de nuevo en un segundo.';
+            connectionStatus.textContent = 'Aún conectando... Intenta de nuevo en un segundo.';
             return;
         }
 
-        connectionStatus.textContent = 'Registrando tu nombre y buscando oponente...';
-        
-        // 1. Preparamos los datos para registrar
-        const registerData = { action: 'register', name: myName, id: peer.id };
+        connectionStatus.textContent = 'Registrando tu nombre...';
+        const playerRef = db.ref('players/' + myName);
+        playerRef.set({ peerId: peer.id, timestamp: Date.now() });
 
-        // 2. Usamos fetch para registrar. QUITAMOS 'no-cors'
-        fetch(SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(registerData),
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Error al registrar.');
-            return response.json(); // Leemos la respuesta
-        })
-        .then(data => {
-            if (!data.success) throw new Error(data.message);
-            connectionStatus.textContent = `Buscando a ${opponentName}...`;
-            
-            // 3. Preparamos los datos para buscar al oponente
-            const lookupData = { action: 'lookup', name: opponentName };
-            return fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(lookupData),
-                headers: { 'Content-Type': 'application/json' }
-            });
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Error al buscar al oponente.');
-            return response.json();
-        })
-        .then(data => {
-            if (!data.success) throw new Error(data.message);
-            if (!data.id) throw new Error(`${opponentName} encontrado, pero no tiene ID de conexión.`);
-            
-            // 4. Conectamos usando la PeerID encontrada
-            connection = peer.connect(data.id);
-            myPlayerColor = 'white'; // El que inicia la conexión es Blancas
-            setupConnectionEvents();
-        })
-        .catch(err => {
-            connectionStatus.textContent = `Error: ${err.message}`;
+        connectionStatus.textContent = `Esperando a ${opponentName}...`;
+        const opponentRef = db.ref('players/' + opponentName);
+        
+        opponentRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.peerId) {
+                opponentRef.off();
+                connectionStatus.textContent = `¡${opponentName} encontrado! Conectando...`;
+                connection = peer.connect(data.peerId);
+                myPlayerColor = 'white'; // El que inicia la conexión es Blancas
+                setupConnectionEvents();
+            }
         });
     }
 
     function setupConnectionEvents() {
         connection.on('open', () => {
-            startGame(false, true);
+            // Envía tu nombre a tu oponente
+            connection.send({ type: 'name', name: myName });
+            connectionStatus.textContent = "Conexión establecida. Esperando nombre del oponente...";
         });
 
         connection.on('data', (data) => {
-            if (data.type === 'move') {
+            if (data.type === 'move' && data.boardState) {
+                board = data.boardState;
                 animateMove(data.move, true);
+            } else if (data.type === 'name') {
+                opponentName = data.name;
+                connectionStatus.textContent = `Conectado con ${opponentName}`;
+                
+                startGame(false, true);
             }
         });
     }
 
-
-    // function setupConnectionEvents() {
-    //     connection.on('open', () => {
-    //         connectionStatus.textContent = '¡Conectado! La partida puede comenzar.';
-    //         onlineSetupSection.classList.add('hidden'); // Oculta la sección de conexión
-    //     });
-
-    //     // Escucha los datos (movimientos) que envía el oponente
-    //     connection.on('data', (data) => {
-    //         if (data.type === 'move') {
-    //             // Anima y ejecuta el movimiento recibido del oponente
-    //             animateMove(data.move, true); // true indica que es un movimiento remoto
-    //         }
-    //     });
-    // }
-
-    //end ONLINE
-
-    // Piezas
-    const pieces = {
-        'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟', // Negras
-        'r': '♖', 'n': '♘', 'b': '♗', 'q': '♕', 'k': '♔', 'p': '♙'  // Blancas
-    };
-
-    const pieceValues = {
-        'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100
-    };
-
+    ////////////////////////
     function resizeCanvas() {
         const availableWidth = window.innerWidth * 0.95;
         const newSize = Math.min(availableWidth, 600);
@@ -201,8 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     //Funciones IA
-
-    const searchDepth = 3;
 
     const pawnEvalWhite = [
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -266,6 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     function showStartScreen() {
+
+        if (hasInteracted) {
+            gameMusic.pause();
+            menuMusic2.play();
+        }
+
         gameScreen.classList.add('hidden');
         startScreen.classList.remove('hidden');
 
@@ -290,6 +283,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // START ONLINE
     function startGame(vsAI, isOnline = false) {
+
+        if (hasInteracted) {
+            menuMusic2.pause();
+            gameMusic.play();
+        }
+    
         isAiActive = vsAI;
         if (!isOnline) { // Solo lee la dificultad si no es online
             aiDifficulty = aiLevelSelect.value;
@@ -312,13 +311,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTurnIndicator();
     }
 
-    // 2. Configura jugadores..    
+    // 2. Configura jugadores..
     function setupPlayers(isOnline = false) {
-
         if (isOnline) {
+            const whitePlayerName = (myPlayerColor === 'white') ? myName : opponentName;
+            const blackPlayerName = (myPlayerColor === 'black') ? myName : opponentName;
             players = [
-                { name: "Jugador 1 (Blancas)", score: 0, color: 'white', isAI: false },
-                { name: "Jugador 2 (Negras)", score: 0, color: 'black', isAI: false }
+                { name: whitePlayerName, score: 0, color: 'white', isAI: false },
+                { name: blackPlayerName, score: 0, color: 'black', isAI: false }
             ];
         } else {
             const storedPlayers = JSON.parse(localStorage.getItem('chessPlayers'));
@@ -345,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateScoreboard();
     }
 
+
     // 3. Guarda en localStorage
     function saveScores() {
         if (players.length === 2 && !players[0].isAI && !players[1].isAI) {
@@ -353,6 +354,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function endGame(reason) {
+
+        gameMusic.pause();
+        menuMusic2.play();
+
         isAiThinking = true;
         let message = '';
 
@@ -432,8 +437,8 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const pieceKey = board[row][col];
+                
                 if (pieceKey) {
-                    // pieza animada
                     if (isAnimating && animationDetails.move.from.row === row && animationDetails.move.from.col === col) {
                         continue;
                     }
@@ -472,35 +477,33 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillText(pieceSymbol, x, y);
     }
 
+    function animateMove(data, isRemoteMove = false) {
+        const move = isRemoteMove ? data.move : data;
+        const pieceToAnimate = isRemoteMove ? move.piece : board[move.from.row][move.from.col];
 
-    function animateMove(move, isRemoteMove = false) {
+        if (!pieceToAnimate) return;
 
-        const isMoveRemote = move.isRemote || isRemoteMove;
-
-        const piece = board[move.from.row][move.from.col];
         const targetPiece = board[move.to.row][move.to.col];
         const fromX = move.from.col * squareSize + squareSize / 2;
         const fromY = move.from.row * squareSize + squareSize / 2;
         const toX = move.to.col * squareSize + squareSize / 2;
         const toY = move.to.row * squareSize + squareSize / 2;
 
-        particleExplosion = null;
-
         animationDetails = {
-            piece: piece,
+            piece: pieceToAnimate,
             fromX, fromY, toX, toY,
             isCapture: targetPiece !== '',
             capturedPiece: targetPiece,
             startTime: performance.now(),
             duration: globalJumpDuration,
             move: move,
-            isRemote: isMoveRemote //online
+            isRemote: isRemoteMove,
+            boardState: isRemoteMove ? data.boardState : null 
         };
-
+        
         isAnimating = true;
         requestAnimationFrame(animationLoop);
     }
-
 
     function animationLoop(timestamp) {
         const elapsedTime = timestamp - animationDetails.startTime;
@@ -516,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const currentX = animationDetails.fromX + (animationDetails.toX - animationDetails.fromX) * progress;
-        const jumpHeight = squareSize * 0.7;
+        const jumpHeight = squareSize * globalJumpHeight;
         const parabolicProgress = -4 * jumpHeight * progress * (progress - 1);
         const currentY = animationDetails.fromY + (animationDetails.toY - animationDetails.fromY) * progress - parabolicProgress;
 
@@ -526,12 +529,20 @@ document.addEventListener('DOMContentLoaded', () => {
             requestAnimationFrame(animationLoop);
         } else {
             if (animationDetails.isCapture) {
-                board[animationDetails.move.to.row][animationDetails.move.to.col] = '';
+                
+                playSound(captureSound);
+
+                if (!animationDetails.isRemote) {
+                    board[animationDetails.move.to.row][animationDetails.move.to.col] = '';
+                }
                 createExplosion(animationDetails.toX, animationDetails.toY, animationDetails.capturedPiece);
                 requestAnimationFrame(explosionLoop);
             } else {
+
+                playSound(moveSound);
+
                 isAnimating = false;
-                makeMove(animationDetails.move.from, animationDetails.move.to, animationDetails.isRemote);
+                makeMove(animationDetails.move.from, animationDetails.move.to, animationDetails.isRemote, animationDetails.boardState);
             }
         }
     }
@@ -558,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function explosionLoop() {
         if (!particleExplosion || particleExplosion.length === 0) {
             isAnimating = false;
-            makeMove(animationDetails.move.from, animationDetails.move.to, animationDetails.isRemote);
+            makeMove(animationDetails.move.from, animationDetails.move.to, animationDetails.isRemote, animationDetails.boardState);
             return;
         }
 
@@ -609,18 +620,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7. clics en canvas
     function handleCanvasClick(event) {
-        if (myPlayerColor && players[currentPlayerIndex].color !== myPlayerColor) {
+        if ((myPlayerColor && players[currentPlayerIndex].color !== myPlayerColor) || isAiThinking || isAnimating) {
             return;
         }
-
-        if (isAiThinking || isAnimating) return;
 
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         const col = Math.floor(x / squareSize);
         const row = Math.floor(y / squareSize);
-
         const clickedPieceKey = board[row][col];
 
         if (selectedPiece) {
@@ -650,51 +658,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function makeMove(from, to, isRemoteMove = false) {
-        const movingPiece = board[from.row][from.col];
+    function makeMove(from, to, isRemoteMove = false, boardState = null) {
 
-        const pieceType = movingPiece.toLowerCase();
+        if (isRemoteMove) {
+            if (boardState) {
+                board = boardState; // Sincroniza el tablero
+            }
+            selectedPiece = null;
+            validMoves = [];
+            currentPlayerIndex = 1 - currentPlayerIndex;
+            updateTurnIndicator();
+            drawGame();
+            return; // Termina ejecución receptor
+        }
+
+        //local
+        const movingPiece = board[from.row][from.col];
+        if (!movingPiece) return;
+
+        const pieceType = movingPiece.toLowerCase().replace('_promoted', '');
         const promotionRank = getPieceColor(movingPiece) === 'white' ? 0 : 7;
+        let finalPiece = movingPiece;
 
         if (pieceType === 'p' && to.row === promotionRank) {
-            board[to.row][to.col] = getPieceColor(movingPiece) === 'white' ? 'q_promoted' : 'Q_promoted';
-        } else {
-            board[to.row][to.col] = movingPiece;
+            finalPiece = getPieceColor(movingPiece) === 'white' ? 'q_promoted' : 'Q_promoted';
         }
+        
+        board[to.row][to.col] = finalPiece;
         board[from.row][from.col] = '';
 
-        const opponentColor = players[1 - currentPlayerIndex].color; // Color del oponente
+        // Comprobación de fin de partida...
+        const opponentColor = players[1 - currentPlayerIndex].color;
         const opponentKingPos = findKing(opponentColor);
-
         if (!opponentKingPos) {
-            //drawGame();
             endGame("Jaque Mate");
             return;
         }
-
         const opponentHasMoves = getAllPossibleMoves(opponentColor).length > 0;
-
         if (!opponentHasMoves) {
-            if (isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color)) {
-                endGame("Jaque Mate");
-            } else {
-                endGame("Ahogado (Empate)");
-            }
+            endGame(isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color) ? "Jaque Mate" : "Ahogado (Empate)");
             return;
         }
-
+        
+        // La partida continúa...
         selectedPiece = null;
         validMoves = [];
-
         currentPlayerIndex = 1 - currentPlayerIndex;
         updateTurnIndicator();
         drawGame();
 
+        // Envía los datos a la red
         if (myPlayerColor && !isRemoteMove) {
-            connection.send({ type: 'move', move: { from, to, isRemote: true } }); //online
+            connection.send({ 
+                type: 'move', 
+                move: { from, to, piece: finalPiece },
+                boardState: board 
+            });
         }
 
-        if (players[currentPlayerIndex]?.isAI && !myPlayerColor) { //no online
+        // Activa la IA si corresponde
+        if (players[currentPlayerIndex]?.isAI && !myPlayerColor) {
             triggerAiMove();
         }
     }
@@ -918,32 +941,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return allMoves[Math.floor(Math.random() * allMoves.length)];
     }
 
-    // Intermedio
-    // function getIntermediateMove() {
-    //     const allMoves = getAllPossibleMoves('black');
-    //     if (allMoves.length === 0) return null;
-    //     let bestMoves = [];
-    //     let maxScore = -1;
-    //     for (const move of allMoves) {
-    //         const targetPiece = board[move.to.row][move.to.col];
-    //         let moveScore = 0;
-    //         if (targetPiece !== '') {
-    //             moveScore = pieceValues[targetPiece.toLowerCase()] || 0;
-    //         }
-    //         if (moveScore > maxScore) {
-    //             maxScore = moveScore;
-    //             bestMoves = [move];
-    //         } else if (moveScore === maxScore) {
-    //             bestMoves.push(move);
-    //         }
-    //     }
-    //     if (maxScore <= 0) {
-    //         return getEasyMove();
-    //     }
-    //     return bestMoves[Math.floor(Math.random() * bestMoves.length)];
-    // }
-
-    // Experto
+    // Experto e intermedio
     function getExpertMove(depth) {
         let bestScore = -Infinity;
         let bestMoves = [];
