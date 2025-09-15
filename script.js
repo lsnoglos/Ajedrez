@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const player2InfoElem = document.getElementById('player2-info');
     const mainMenuButton = document.getElementById('main-menu-button');
 
+    const gameOverModal = document.getElementById('game-over-modal');
+    const winnerMessage = document.getElementById('winner-message');
+    const modalMenuButton = document.getElementById('modal-menu-button');
+
     let size;
     let squareSize;
 
@@ -33,6 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let isAiActive = false;
     let aiDifficulty = 'easy';
     let isAiThinking = false;
+
+    let isAnimating = false;
+    let animationDetails = null;
+    const globalJumpDuration = 450;
+    const globalJumpHeight = 2;
+    const globalJumpParticles = 30;
+    const globalJumpGravity = 0.2;
+    let particleExplosion = null;
 
     // Piezas
     const pieces = {
@@ -127,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         aiLevelSelection.classList.add('hidden');
         startAiButton.textContent = "Contra la PC";
-        startAiButton.style.backgroundColor = '';
+         startAiButton.classList.remove('confirm-button');
         isAiSelectorVisible = false;
         
         displayScoresSummary();
@@ -197,20 +209,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function endGame() {
-        const winner = players[currentPlayerIndex];
-        if (!winner.isAI) {
-            alert(`¡Jaque Mate! El ganador es ${winner.name}`);
-        } else {
-            alert(`¡Jaque Mate! Has sido derrotado por la ${winner.name}.`);
+    function endGame(reason) {
+        isAiThinking = true;
+        let message = '';
+        
+        if (reason === "Jaque Mate") {
+            const winner = players[currentPlayerIndex];
+            message = `¡Jaque Mate! Gana ${winner.name}`;
+            if (!isAiActive) {
+                winner.score++;
+                saveScores();
+            }
+        } else if (reason === "Ahogado (Empate)") {
+            message = "¡Ahogado! La partida es un empate.";
         }
-        if (!isAiActive) {
-            winner.score++;
-            saveScores();
-        }
+        
+        winnerMessage.textContent = message;
         updateScoreboard();
-        setTimeout(showStartScreen, 2000);
+        gameOverModal.classList.remove('hidden');
     }
+
 
     // 4. Actualiza información pantalla
     function updateScoreboard() {
@@ -267,17 +285,171 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.font = `${squareSize * 0.8}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const pieceKey = board[row][col];
                 if (pieceKey) {
-                    ctx.fillStyle = (pieceKey === pieceKey.toUpperCase()) ? '#000000' : '#FFFFFF';
+                    // pieza animada
+                    if (isAnimating && animationDetails.move.from.row === row && animationDetails.move.from.col === col) {
+                        continue;
+                    }
                     const x = col * squareSize + squareSize / 2;
                     const y = row * squareSize + squareSize / 2;
-                    ctx.fillText(pieces[pieceKey], x, y);
+                    drawSinglePiece(pieceKey, x, y);
                 }
             }
         }
+    }
+
+    function drawSinglePiece(pieceKey, x, y) {
+        const isPromoted = pieceKey.includes('_promoted');
+        const normalPieceKey = pieceKey.replace('_promoted', '');
+        
+        if (!pieces[normalPieceKey]) return;
+
+        const pieceType = normalPieceKey.toLowerCase();
+        const pieceSymbol = pieces[normalPieceKey];
+        const color = getPieceColor(normalPieceKey);
+        
+        ctx.fillStyle = (color === 'black') ? '#000000' : '#FFFFFF';
+        ctx.strokeStyle = (color === 'black') ? '#FFFFFF' : '#000000';
+        ctx.lineWidth = 2.5;
+
+        if (isPromoted && pieceType === 'q') {
+            // Reina coronada
+            ctx.strokeStyle = '#FFA500'; // Borde naranja
+        } else if (pieceType === 'k') {
+            ctx.strokeStyle = '#87CEEB';
+        } else if (pieceType === 'q') {
+            ctx.strokeStyle = '#FFC0CB';
+        }
+
+        ctx.strokeText(pieceSymbol, x, y);
+        ctx.fillText(pieceSymbol, x, y);
+    }
+
+
+    function animateMove(move) {
+        const piece = board[move.from.row][move.from.col];
+        const targetPiece = board[move.to.row][move.to.col];
+
+        const fromX = move.from.col * squareSize + squareSize / 2;
+        const fromY = move.from.row * squareSize + squareSize / 2;
+        const toX = move.to.col * squareSize + squareSize / 2;
+        const toY = move.to.row * squareSize + squareSize / 2;
+
+        particleExplosion = null;
+
+        animationDetails = {
+            // Datos pieza que se mueve
+            piece: piece,
+            fromX: fromX, fromY: fromY,
+            toX: toX, toY: toY,
+            
+            // Datos pieza capturada (si existe)
+            isCapture: targetPiece !== '',
+            capturedPiece: targetPiece,
+
+            // Control de tiempo
+            startTime: performance.now(),
+            duration: globalJumpDuration, // duración
+            move: move
+        };
+        
+        isAnimating = true;
+
+        //board[move.from.row][move.from.col] = '';
+
+        requestAnimationFrame(animationLoop);
+    }
+
+    function animationLoop(timestamp) {
+        const elapsedTime = timestamp - animationDetails.startTime;
+        let progress = elapsedTime / animationDetails.duration;
+        if (progress > 1) {
+            progress = 1;
+        }
+
+        drawGame();
+
+        if (animationDetails.isCapture) {
+            drawSinglePiece(animationDetails.capturedPiece, animationDetails.toX, animationDetails.toY);
+        }
+
+        const currentX = animationDetails.fromX + (animationDetails.toX - animationDetails.fromX) * progress;
+        const jumpHeight = squareSize * globalJumpHeight;
+        const parabolicProgress = -4 * jumpHeight * progress * (progress - 1);
+        const currentY = animationDetails.fromY + (animationDetails.toY - animationDetails.fromY) * progress - parabolicProgress;
+        
+        drawSinglePiece(animationDetails.piece, currentX, currentY);
+
+        if (progress < 1) {
+            requestAnimationFrame(animationLoop); // animación
+        } else {
+            //explosión.
+            if (animationDetails.isCapture) {
+                board[animationDetails.move.to.row][animationDetails.move.to.col] = '';
+                createExplosion(animationDetails.toX, animationDetails.toY, animationDetails.capturedPiece);
+                requestAnimationFrame(explosionLoop);
+            } else {
+                 // finalizamos el movimiento.
+                isAnimating = false;
+                makeMove(animationDetails.move.from, animationDetails.move.to);
+            }
+        }
+    }
+
+    function createExplosion(x, y, piece) {
+        const particles = [];
+        const color = getPieceColor(piece);
+
+        for (let i = 0; i < globalJumpParticles; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                // Velocidad y dirección
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.7) * 10,
+                radius: Math.random() * 3 + 1,
+                color: (color === 'black') ? `rgba(0, 0, 0, ${Math.random()})` : `rgba(255, 255, 255, ${Math.random()})`,
+                life: 30 + Math.random() * globalJumpParticles // frames partícula
+            });
+        }
+        particleExplosion = particles;
+    }
+
+    function explosionLoop() {
+        if (!particleExplosion || particleExplosion.length === 0) {
+            // explosión ha terminado
+            isAnimating = false;
+            makeMove(animationDetails.move.from, animationDetails.move.to);
+            return;
+        }
+
+        drawGame();
+        
+        drawSinglePiece(animationDetails.piece, animationDetails.toX, animationDetails.toY);
+
+        // Actualiza y dibuja cada partícula
+        for (let i = particleExplosion.length - 1; i >= 0; i--) {
+            const p = particleExplosion[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += globalJumpGravity; // Gravedad
+            p.life--;
+
+            if (p.life <= 0) {
+                particleExplosion.splice(i, 1); // Elimina partícula
+            } else {
+                ctx.beginPath();
+                ctx.fillStyle = p.color;
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        requestAnimationFrame(explosionLoop);
     }
 
     // Resalta pieza
@@ -302,17 +474,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7. clics en canvas
     function handleCanvasClick(event) {
-        if (isAiThinking) return;
+        if (isAiThinking || isAnimating) return;
+
         const rect = canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         const col = Math.floor(x / squareSize);
         const row = Math.floor(y / squareSize);
+        
         const clickedPieceKey = board[row][col];
+
         if (selectedPiece) {
             const isValidMove = validMoves.some(move => move.row === row && move.col === col);
             if (isValidMove) {
-                makeMove(selectedPiece.row, selectedPiece.col, row, col);
+                animateMove({ from: selectedPiece, to: { row, col } });
             } else {
                 if (clickedPieceKey && getPieceColor(clickedPieceKey) === players[currentPlayerIndex].color) {
                     selectPiece(row, col);
@@ -320,11 +495,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedPiece = null;
                     validMoves = [];
                 }
+                drawGame();
             }
         } else {
             selectPiece(row, col);
+            drawGame();
         }
-        drawGame();
     }
 
     function selectPiece(row, col) {
@@ -335,29 +511,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 8. Mueve piezas en estructura
-    function makeMove(fromRow, fromCol, toRow, toCol) {
-        const targetPiece = board[toRow][toCol];
-        if (targetPiece.toLowerCase() === 'k') {
-            endGame();
+    function makeMove(from, to) {
+        const movingPiece = board[from.row][from.col];
+        
+        const pieceType = movingPiece.toLowerCase();
+        const promotionRank = getPieceColor(movingPiece) === 'white' ? 0 : 7;
+
+        if (pieceType === 'p' && to.row === promotionRank) {
+            board[to.row][to.col] = getPieceColor(movingPiece) === 'white' ? 'q_promoted' : 'Q_promoted';
+        } else {
+            board[to.row][to.col] = movingPiece;
+        }
+        board[from.row][from.col] = '';
+
+        const opponentColor = players[1 - currentPlayerIndex].color; // Color del oponente
+        const opponentKingPos = findKing(opponentColor);
+        
+        if (!opponentKingPos) {
+            drawGame(); 
+            endGame("Jaque Mate");
+            return; 
+        }
+
+        const opponentHasMoves = getAllPossibleMoves(opponentColor).length > 0;
+
+        if (!opponentHasMoves) {
+            if (isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color)) {
+                endGame("Jaque Mate");
+            } else {
+                endGame("Ahogado (Empate)");
+            }
             return;
         }
-        board[toRow][toCol] = board[fromRow][fromCol];
-        board[fromRow][fromCol] = '';
+        
         selectedPiece = null;
         validMoves = [];
+        
         currentPlayerIndex = 1 - currentPlayerIndex;
         updateTurnIndicator();
         drawGame();
+
         if (players.length > 1 && players[currentPlayerIndex].isAI) {
             triggerAiMove();
         }
     }
 
     function getValidMoves(piece, row, col) {
-        const pieceType = piece.toLowerCase();
+        const rawMoves = getRawValidMoves(piece, row, col);
+        const legalMoves = [];
+        const ownColor = getPieceColor(piece);
+
+        for (const move of rawMoves) {
+            // Simula el movimiento
+            const originalPiece = board[move.row][move.col];
+            board[move.row][move.col] = piece;
+            board[row][col] = '';
+
+            const kingPos = findKing(ownColor);
+            if (kingPos && !isSquareAttacked(kingPos.row, kingPos.col, ownColor === 'white' ? 'black' : 'white')) {
+                legalMoves.push(move);
+            }
+            
+            // Deshace el movimiento
+            board[row][col] = piece;
+            board[move.row][move.col] = originalPiece;
+        }
+        return legalMoves;
+    }
+
+    function getRawValidMoves(piece, row, col) {
+        const normalPieceKey = piece.replace('_promoted', '');
+        const pieceType = normalPieceKey.toLowerCase();
+        
         switch (pieceType) {
-            case 'p': return getPawnMoves(row, col, getPieceColor(piece));
+            case 'p': return getPawnMoves(row, col, getPieceColor(normalPieceKey));
             case 'r': return getRookMoves(row, col);
             case 'n': return getKnightMoves(row, col);
             case 'b': return getBishopMoves(row, col);
@@ -366,6 +593,26 @@ document.addEventListener('DOMContentLoaded', () => {
             default: return [];
         }
     }
+
+    //////////////////
+    //posición del rey
+    function findKing(color) {
+        const kingPiece = (color === 'white') ? 'k' : 'K';
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                if (board[row][col] === kingPiece) {
+                    return { row, col };
+                }
+            }
+        }
+        return null;
+    }
+    // Verifica si una casilla específica está siendo atacada por el color opuesto
+    function isSquareAttacked(row, col, attackerColor) {
+        const allOpponentMoves = getAllPossibleMoves(attackerColor, true); // true para una búsqueda "bruta"
+        return allOpponentMoves.some(move => move.to.row === row && move.to.col === col);
+    }
+    /////////////////
 
     function getPawnMoves(row, col, color) {
         const moves = [];
@@ -484,39 +731,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return (pieceKey === pieceKey.toUpperCase()) ? 'black' : 'white';
     }
 
-    // 9. Termina partida y actualiza marcador
-    // function endGame() {
-    //     const winner = players[currentPlayerIndex];
-    //     if (!winner.isAI) {
-    //         alert(`¡Jaque Mate! El ganador es ${winner.name}`);
-    //     } else {
-    //         alert(`¡Jaque Mate! Has sido derrotado por la ${winner.name}.`);
-    //     }
-    //     if (!isAiActive) {
-    //         winner.score++;
-    //         saveScores();
-    //     }
-    //     updateScoreboard();
-    //     setTimeout(showStartScreen, 2000);
-    // }
-
-    // Función de ayuda para verificar si una casilla está dentro del tablero
-    // function isValidSquare(row, col) {
-    //     return row >= 0 && row < 8 && col >= 0 && col < 8;
-    // }
-    
-    // saber color de pieza
-    // function getPieceColor(pieceKey) {
-    //     return (pieceKey === pieceKey.toUpperCase()) ? 'black' : 'white';
-    // }
-
-    // AI .....................
     function triggerAiMove() {
         isAiThinking = true;
         setTimeout(() => {
             const bestMove = calculateBestMove();
             if (bestMove) {
-                makeMove(bestMove.from.row, bestMove.from.col, bestMove.to.row, bestMove.to.col);
+                // La IA llama a la animación
+                animateMove(bestMove);
             } else {
                 alert("La IA no tiene movimientos. ¿Ahogado?");
                 showStartScreen();
@@ -555,29 +776,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Intermedio
-    function getIntermediateMove() {
-        const allMoves = getAllPossibleMoves('black');
-        if (allMoves.length === 0) return null;
-        let bestMoves = [];
-        let maxScore = -1;
-        for (const move of allMoves) {
-            const targetPiece = board[move.to.row][move.to.col];
-            let moveScore = 0;
-            if (targetPiece !== '') {
-                moveScore = pieceValues[targetPiece.toLowerCase()] || 0;
-            }
-            if (moveScore > maxScore) {
-                maxScore = moveScore;
-                bestMoves = [move];
-            } else if (moveScore === maxScore) {
-                bestMoves.push(move);
-            }
-        }
-        if (maxScore <= 0) {
-            return getEasyMove();
-        }
-        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
-    }
+    // function getIntermediateMove() {
+    //     const allMoves = getAllPossibleMoves('black');
+    //     if (allMoves.length === 0) return null;
+    //     let bestMoves = [];
+    //     let maxScore = -1;
+    //     for (const move of allMoves) {
+    //         const targetPiece = board[move.to.row][move.to.col];
+    //         let moveScore = 0;
+    //         if (targetPiece !== '') {
+    //             moveScore = pieceValues[targetPiece.toLowerCase()] || 0;
+    //         }
+    //         if (moveScore > maxScore) {
+    //             maxScore = moveScore;
+    //             bestMoves = [move];
+    //         } else if (moveScore === maxScore) {
+    //             bestMoves.push(move);
+    //         }
+    //     }
+    //     if (maxScore <= 0) {
+    //         return getEasyMove();
+    //     }
+    //     return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+    // }
 
     // Experto
     function getExpertMove(depth) {
@@ -656,17 +877,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    //
-    function getAllPossibleMoves(color) {
+    function getAllPossibleMoves(color, isRawSearch = false) {
         const allMoves = [];
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
                 if (piece && getPieceColor(piece) === color) {
-                    const moves = getValidMoves(piece, row, col);
+                    // Para la búsqueda bruta, no filtramos por jaque.
+                    const moves = isRawSearch ? getRawValidMoves(piece, row, col) : getValidMoves(piece, row, col);
                     moves.forEach(move => {
                         allMoves.push({
-                            from: { row, col },
+                            from: { row, col, piece },
                             to: { row: move.row, col: move.col }
                         });
                     });
@@ -709,6 +930,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function createBackgroundPieces() {
+        const container = document.getElementById('background-container');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        const pieceChars = ['♙', '♘', '♗', '♖', '♕', '♔', '♟', '♞', '♝', '♜', '♛', '♚'];
+        const numberOfPieces = 30;
+
+        for (let i = 0; i < numberOfPieces; i++) {
+            const pieceSpan = document.createElement('span');
+            
+            pieceSpan.textContent = pieceChars[Math.floor(Math.random() * pieceChars.length)];
+            pieceSpan.className = 'bg-piece';
+            
+            const randomTop = Math.random() * 100;
+            const randomLeft = Math.random() * 100;
+            const randomSize = Math.random() * 6 + 2;
+            const randomOpacity = Math.random() * 0.08 + 0.01;
+            const randomRotation = Math.random() * 360 - 180;
+
+            pieceSpan.style.top = `${randomTop}vh`;
+            pieceSpan.style.left = `${randomLeft}vw`;
+            pieceSpan.style.fontSize = `${randomSize}em`;
+            pieceSpan.style.setProperty('--target-opacity', randomOpacity);
+            pieceSpan.style.transform = `rotate(${randomRotation}deg)`;
+            
+            container.appendChild(pieceSpan);
+        }
+    }
+
     let isAiSelectorVisible = false;
 
     start2pButton.addEventListener('click', () => {
@@ -719,11 +971,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAiSelectorVisible) {
             aiLevelSelection.classList.remove('hidden');
             startAiButton.textContent = "Iniciar Partida vs PC";
-            startAiButton.style.backgroundColor = "#C4845A";
+            startAiButton.classList.add('confirm-button'); 
             isAiSelectorVisible = true;
         } else {
             startGame(true);
         }
+    });
+
+    modalMenuButton.addEventListener('click', () => {
+        gameOverModal.classList.add('hidden'); // Oculta modal
+        isAiThinking = false; // Desbloquea tablero
+        showStartScreen();
     });
     
     mainMenuButton.addEventListener('click', showStartScreen);
@@ -739,6 +997,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.addEventListener('resize', resizeCanvas);
 
+    createBackgroundPieces();
     showStartScreen();
-
+    resizeCanvas();
 });
