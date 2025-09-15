@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ajedrez By Noel</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="background-container"></div>
     <div id="start-screen">
@@ -16,19 +19,29 @@
             <p id="summary-p2">Jugador 2: 0 victorias</p>
         </div>
         <div class="menu-buttons">
-            <button id="start-2p-button">2 Jugadores</button>
+            <button id="start-2p-button">2 Jugadores (Local)</button>
             <button id="start-ai-button">Contra la PC</button>
-        </div>
-        <div id="ai-level-selection" class="hidden">
-            <label for="ai-level-start">Dificultad:</label>
-            <select id="ai-level-start">
-                <option value="easy">Fácil</option>
-                <option value="intermediate">Intermedio</option>
-                <option value="expert">Experto</option>
-            </select>
+
+            <div id="ai-level-selection" class="hidden">
+                <label for="ai-level-start">Dificultad:</label>
+                <select id="ai-level-start">
+                    <option value="easy">Fácil</option>
+                    <option value="intermediate">Intermedio</option>
+                    <option value="expert">Experto</option>
+                </select>
+            </div>
+
+            <button id="start-online-button">Jugar en Línea</button>
+
         </div>
         <div class="controls-start">
-             <button id="reset-scores-start">Borrar Puntuaciones</button>
+            <button id="reset-scores-start">Borrar Puntuaciones</button>
+        </div>
+        <div id="online-setup" class="hidden">
+            <p>Tu ID de jugador es: <strong id="player-id"></strong></p>
+            <input type="text" id="opponent-id-input" placeholder="Ingresa la ID de tu oponente">
+            <button id="connect-button">Conectar</button>
+            <p id="connection-status"></p>
         </div>
     </div>
 
@@ -58,4 +71,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
