@@ -696,6 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAiSelectorVisible) {
             aiLevelSelection.classList.remove('hidden');
             startAiButton.textContent = "Iniciar Partida vs PC";
+            startAiButton.backgroundColor = "#64B9B3";
             isAiSelectorVisible = true;
         } else {
             startGame(true);
