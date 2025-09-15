@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
+    <div id="background-container"></div>
     <div id="start-screen">
-        <h1>Ajedrez</h1>
+        <h1>AJEDREZ LR</h1>
         <div class="scores-summary">
             <h2>Puntuaciones (2 Jugadores)</h2>
             <p id="summary-p1">Jugador 1: 0 victorias</p>
@@ -46,6 +46,13 @@
 
         <div class="controls">
             <button id="main-menu-button">Volver al Menú</button>
+        </div>
+    </div>
+
+    <div id="game-over-modal" class="hidden">
+        <div class="modal-content">
+            <h2 id="winner-message"></h2>
+            <button id="modal-menu-button">Volver al Menú</button>
         </div>
     </div>
 
