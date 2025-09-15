@@ -230,3 +230,26 @@ button.confirm-button {
         opacity: var(--target-opacity, 0.1);
     }
 }
+
+#online-setup {
+    background-color: var(--primary-color);
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    border: 1px solid var(--secondary-color);
+    width: 90%;
+    max-width: 350px;
+    animation: fadeIn 0.3s;
+}
+
+#online-setup input {
+    width: 80%;
+    padding: 8px;
+    margin: 10px 0;
+    font-size: 1em;
+}
+
+#online-setup strong {
+    color: var(--highlight-color);
+    user-select: all; /* Permite copiar la ID fácilmente */
+}
