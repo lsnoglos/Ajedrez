@@ -10,10 +10,15 @@
 </head>
 
 <body>
+
+    <audio id="menu-music" src="assets/back_audio2.mp3" loop></audio>
+    <audio id="game-music" src="assets/back_audio1.mp3" loop></audio>
+    <audio id="menu-music2" src="assets/win.mp3" loop></audio>
+
     <div id="background-container"></div>
     <div id="start-screen">
         <h1>AJEDREZ LR</h1>
-        <div class="hidden scores-summary">
+        <div class="scores-summary hidden">
             <h2>Puntuaciones (2 Jugadores)</h2>
             <p id="summary-p1">Jugador 1: 0 victorias</p>
             <p id="summary-p2">Jugador 2: 0 victorias</p>
@@ -27,7 +32,7 @@
                 <select id="ai-level-start">
                     <option value="easy">Fácil</option>
                     <option value="intermediate">Intermedio</option>
-                    <option selected value="expert">Experto</option>
+                    <option value="expert" selected>Experto</option>
                 </select>
             </div>
 
@@ -37,9 +42,10 @@
         <div class="controls-start hidden">
             <button id="reset-scores-start">Borrar Puntuaciones</button>
         </div>
+
         <div id="online-setup" class="hidden">
-            <input type="text" id="my-name-input" placeholder="Ingresa tu nombre de jugador">
-            <input type="text" id="opponent-name-input" placeholder="Ingresa el nombre de tu oponente">
+            <input type="text" id="my-name-input" placeholder="Ingresa tu nombre único">
+            <input type="text" id="opponent-name-input" placeholder="Nombre de tu oponente">
             <button id="connect-by-name-button">Conectar y Jugar</button>
             <p id="connection-status"></p>
         </div>
@@ -68,6 +74,24 @@
             <button id="modal-menu-button">Volver al Menú</button>
         </div>
     </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+      // Tu configuración personal de Firebase
+      const firebaseConfig = {
+        apiKey: "AIzaSyCYdwbnMKMKZ9GOFvmy3JWghAz6b4C0Z5E",
+        authDomain: "ajedrez-lr.firebaseapp.com",
+        databaseURL: "https://ajedrez-lr-default-rtdb.firebaseio.com",
+        projectId: "ajedrez-lr",
+        storageBucket: "ajedrez-lr.appspot.com",
+        messagingSenderId: "498722901355",
+        appId: "1:498722901355:web:83df4391fdf642c4c8102e"
+      };
+      // Inicializa Firebase
+      firebase.initializeApp(firebaseConfig);
+    </script>
 
     <script src="script.js"></script>
 </body>
