@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
-    
+
     const startScreen = document.getElementById('start-screen');
     const gameScreen = document.getElementById('game-screen');
 
@@ -46,6 +46,73 @@ document.addEventListener('DOMContentLoaded', () => {
     const globalJumpGravity = 0.2;
     let particleExplosion = null;
 
+    //ONLINE
+
+    const startOnlineButton = document.getElementById('start-online-button');
+    const onlineSetupSection = document.getElementById('online-setup');
+    const playerIdElem = document.getElementById('player-id');
+    const opponentIdInput = document.getElementById('opponent-id-input');
+    const connectButton = document.getElementById('connect-button');
+    const connectionStatus = document.getElementById('connection-status');
+
+    let peer;
+    let connection;
+    let myPlayerColor = null;
+
+    function initializePeer() {
+        // Se conecta al servidor gratuito de PeerJS
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+            console.log('Mi ID de PeerJS es: ' + id);
+            playerIdElem.textContent = id;
+        });
+
+        // Escucha conexiones entrantes
+        peer.on('connection', (conn) => {
+            connection = conn;
+            setupConnectionEvents();
+            // El que recibe la conexión será las negras (jugador 2)
+            myPlayerColor = 'black';
+            startGame(false, true); // Inicia partida localmente, pero en modo online
+        });
+
+        peer.on('error', (err) => {
+            console.error(err);
+            connectionStatus.textContent = `Error: ${err.message}`;
+        });
+    }
+
+    function connectToOpponent() {
+        const opponentId = opponentIdInput.value;
+        if (!opponentId) {
+            connectionStatus.textContent = 'Por favor, ingresa una ID.';
+            return;
+        }
+        connection = peer.connect(opponentId);
+        setupConnectionEvents();
+        // El que inicia la conexión será las blancas (jugador 1)
+        myPlayerColor = 'white';
+        startGame(false, true);
+    }
+
+    function setupConnectionEvents() {
+        connection.on('open', () => {
+            connectionStatus.textContent = '¡Conectado! La partida puede comenzar.';
+            onlineSetupSection.classList.add('hidden'); // Oculta la sección de conexión
+        });
+
+        // Escucha los datos (movimientos) que envía el oponente
+        connection.on('data', (data) => {
+            if (data.type === 'move') {
+                // Anima y ejecuta el movimiento recibido del oponente
+                animateMove(data.move, true); // true indica que es un movimiento remoto
+            }
+        });
+    }
+
+    //end ONLINE
+
     // Piezas
     const pieces = {
         'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟', // Negras
@@ -53,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const pieceValues = {
-    'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100 
+        'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100
     };
 
     function resizeCanvas() {
@@ -70,78 +137,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //Funciones IA
 
-    const searchDepth = 3; 
+    const searchDepth = 3;
 
     const pawnEvalWhite = [
-        [0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
-        [5.0,  5.0,  5.0,  5.0,  5.0,  5.0,  5.0,  5.0],
-        [1.0,  1.0,  2.0,  3.0,  3.0,  2.0,  1.0,  1.0],
-        [0.5,  0.5,  1.0,  2.5,  2.5,  1.0,  0.5,  0.5],
-        [0.0,  0.0,  0.0,  2.0,  2.0,  0.0,  0.0,  0.0],
-        [0.5, -0.5, -1.0,  0.0,  0.0, -1.0, -0.5,  0.5],
-        [0.5,  1.0,  1.0, -2.0, -2.0,  1.0,  1.0,  0.5],
-        [0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0]
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+        [1.0, 1.0, 2.0, 3.0, 3.0, 2.0, 1.0, 1.0],
+        [0.5, 0.5, 1.0, 2.5, 2.5, 1.0, 0.5, 0.5],
+        [0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 0.0],
+        [0.5, -0.5, -1.0, 0.0, 0.0, -1.0, -0.5, 0.5],
+        [0.5, 1.0, 1.0, -2.0, -2.0, 1.0, 1.0, 0.5],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     ];
 
     const pawnEvalBlack = pawnEvalWhite.slice().reverse();
 
     const knightEval = [
         [-5.0, -4.0, -3.0, -3.0, -3.0, -3.0, -4.0, -5.0],
-        [-4.0, -2.0,  0.0,  0.0,  0.0,  0.0, -2.0, -4.0],
-        [-3.0,  0.0,  1.0,  1.5,  1.5,  1.0,  0.0, -3.0],
-        [-3.0,  0.5,  1.5,  2.0,  2.0,  1.5,  0.5, -3.0],
-        [-3.0,  0.0,  1.5,  2.0,  2.0,  1.5,  0.0, -3.0],
-        [-3.0,  0.5,  1.0,  1.5,  1.5,  1.0,  0.5, -3.0],
-        [-4.0, -2.0,  0.0,  0.5,  0.5,  0.0, -2.0, -4.0],
+        [-4.0, -2.0, 0.0, 0.0, 0.0, 0.0, -2.0, -4.0],
+        [-3.0, 0.0, 1.0, 1.5, 1.5, 1.0, 0.0, -3.0],
+        [-3.0, 0.5, 1.5, 2.0, 2.0, 1.5, 0.5, -3.0],
+        [-3.0, 0.0, 1.5, 2.0, 2.0, 1.5, 0.0, -3.0],
+        [-3.0, 0.5, 1.0, 1.5, 1.5, 1.0, 0.5, -3.0],
+        [-4.0, -2.0, 0.0, 0.5, 0.5, 0.0, -2.0, -4.0],
         [-5.0, -4.0, -3.0, -3.0, -3.0, -3.0, -4.0, -5.0]
     ];
 
     const bishopEvalWhite = [
-        [ -2.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -2.0],
-        [ -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -1.0],
-        [ -1.0,  0.0,  0.5,  1.0,  1.0,  0.5,  0.0, -1.0],
-        [ -1.0,  0.5,  0.5,  1.0,  1.0,  0.5,  0.5, -1.0],
-        [ -1.0,  0.0,  1.0,  1.0,  1.0,  1.0,  0.0, -1.0],
-        [ -1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, -1.0],
-        [ -1.0,  0.5,  0.0,  0.0,  0.0,  0.0,  0.5, -1.0],
-        [ -2.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -2.0]
+        [-2.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -2.0],
+        [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0],
+        [-1.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0, -1.0],
+        [-1.0, 0.5, 0.5, 1.0, 1.0, 0.5, 0.5, -1.0],
+        [-1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, -1.0],
+        [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0],
+        [-1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, -1.0],
+        [-2.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -2.0]
     ];
 
     const bishopEvalBlack = bishopEvalWhite.slice().reverse();
 
     const rookEvalWhite = [
-        [  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0],
-        [  0.5,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  0.5],
-        [ -0.5,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -0.5],
-        [ -0.5,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -0.5],
-        [ -0.5,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -0.5],
-        [ -0.5,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -0.5],
-        [ -0.5,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -0.5],
-        [  0.0,   0.0, 0.0,  0.5,  0.5,  0.0,  0.0,  0.0]
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        [0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0]
     ];
 
     const rookEvalBlack = rookEvalWhite.slice().reverse();
 
     const queenEval = [
-        [ -2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0],
-        [ -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, -1.0],
-        [ -1.0,  0.0,  0.5,  0.5,  0.5,  0.5,  0.0, -1.0],
-        [ -0.5,  0.0,  0.5,  0.5,  0.5,  0.5,  0.0, -0.5],
-        [  0.0,  0.0,  0.5,  0.5,  0.5,  0.5,  0.0, -0.5],
-        [ -1.0,  0.5,  0.5,  0.5,  0.5,  0.5,  0.0, -1.0],
-        [ -1.0,  0.0,  0.5,  0.0,  0.0,  0.0,  0.0, -1.0],
-        [ -2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0]
+        [-2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0],
+        [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0],
+        [-1.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, -1.0],
+        [-0.5, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, -0.5],
+        [0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, -0.5],
+        [-1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, -1.0],
+        [-1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -1.0],
+        [-2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0]
     ];
 
     function showStartScreen() {
         gameScreen.classList.add('hidden');
         startScreen.classList.remove('hidden');
-        
+
         aiLevelSelection.classList.add('hidden');
         startAiButton.textContent = "Contra la PC";
-         startAiButton.classList.remove('confirm-button');
+        startAiButton.classList.remove('confirm-button');
         isAiSelectorVisible = false;
-        
+
         displayScoresSummary();
     }
 
@@ -156,12 +223,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function startGame(vsAI) {
+    // START ONLINE
+    function startGame(vsAI, isOnline = false) {
         isAiActive = vsAI;
-        aiDifficulty = aiLevelSelect.value; 
+        if (!isOnline) { // Solo lee la dificultad si no es online
+            aiDifficulty = aiLevelSelect.value;
+        }
         startScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
-        setupPlayers();
+        setupPlayers(isOnline); // Pasa la bandera online
         initGame();
     }
 
@@ -178,25 +248,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 2. Configura jugadores..    
-    function setupPlayers() {
-        const storedPlayers = JSON.parse(localStorage.getItem('chessPlayers'));
-        if (isAiActive) {
-            const player1Name = storedPlayers ? storedPlayers[0].name : "Jugador 1";
+    function setupPlayers(isOnline = false) {
+
+        if (isOnline) {
             players = [
-                { name: player1Name, score: 0, color: 'white', isAI: false },
-                { name: `PC (${aiDifficulty})`, score: 0, color: 'black', isAI: true }
+                { name: "Jugador 1 (Blancas)", score: 0, color: 'white', isAI: false },
+                { name: "Jugador 2 (Negras)", score: 0, color: 'black', isAI: false }
             ];
         } else {
-            if (storedPlayers) {
-                players = storedPlayers;
-            } else {
-                const player1Name = prompt("Nombre Jugador 1 (Blancas):", "Jugador 1") || "Jugador 1";
-                const player2Name = prompt("Nombre Jugador 2 (Negras):", "Jugador 2") || "Jugador 2";
+            const storedPlayers = JSON.parse(localStorage.getItem('chessPlayers'));
+            if (isAiActive) {
+                const player1Name = storedPlayers ? storedPlayers[0].name : "Jugador 1";
                 players = [
                     { name: player1Name, score: 0, color: 'white', isAI: false },
-                    { name: player2Name, score: 0, color: 'black', isAI: false }
+                    { name: `PC (${aiDifficulty})`, score: 0, color: 'black', isAI: true }
                 ];
-                saveScores();
+            } else {
+                if (storedPlayers) {
+                    players = storedPlayers;
+                } else {
+                    const player1Name = prompt("Nombre Jugador 1 (Blancas):", "Jugador 1") || "Jugador 1";
+                    const player2Name = prompt("Nombre Jugador 2 (Negras):", "Jugador 2") || "Jugador 2";
+                    players = [
+                        { name: player1Name, score: 0, color: 'white', isAI: false },
+                        { name: player2Name, score: 0, color: 'black', isAI: false }
+                    ];
+                    saveScores();
+                }
             }
         }
         updateScoreboard();
@@ -212,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function endGame(reason) {
         isAiThinking = true;
         let message = '';
-        
+
         if (reason === "Jaque Mate") {
             const winner = players[currentPlayerIndex];
             message = `¡Jaque Mate! Gana ${winner.name}`;
@@ -223,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (reason === "Ahogado (Empate)") {
             message = "¡Ahogado! La partida es un empate.";
         }
-        
+
         winnerMessage.textContent = message;
         updateScoreboard();
         gameOverModal.classList.remove('hidden');
@@ -274,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawBoard() {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
-                if ((row + col) % 2 === 0) { ctx.fillStyle = '#ebd8b7'; } 
+                if ((row + col) % 2 === 0) { ctx.fillStyle = '#ebd8b7'; }
                 else { ctx.fillStyle = '#a98865'; }
                 ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
             }
@@ -305,13 +383,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawSinglePiece(pieceKey, x, y) {
         const isPromoted = pieceKey.includes('_promoted');
         const normalPieceKey = pieceKey.replace('_promoted', '');
-        
+
         if (!pieces[normalPieceKey]) return;
 
         const pieceType = normalPieceKey.toLowerCase();
         const pieceSymbol = pieces[normalPieceKey];
         const color = getPieceColor(normalPieceKey);
-        
+
         ctx.fillStyle = (color === 'black') ? '#000000' : '#FFFFFF';
         ctx.strokeStyle = (color === 'black') ? '#FFFFFF' : '#000000';
         ctx.lineWidth = 2.5;
@@ -330,10 +408,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    function animateMove(move) {
+    function animateMove(move, isRemoteMove = false) {
+
+        const isMoveRemote = move.isRemote || isRemoteMove;
+
         const piece = board[move.from.row][move.from.col];
         const targetPiece = board[move.to.row][move.to.col];
-
         const fromX = move.from.col * squareSize + squareSize / 2;
         const fromY = move.from.row * squareSize + squareSize / 2;
         const toX = move.to.col * squareSize + squareSize / 2;
@@ -342,27 +422,20 @@ document.addEventListener('DOMContentLoaded', () => {
         particleExplosion = null;
 
         animationDetails = {
-            // Datos pieza que se mueve
             piece: piece,
-            fromX: fromX, fromY: fromY,
-            toX: toX, toY: toY,
-            
-            // Datos pieza capturada (si existe)
+            fromX, fromY, toX, toY,
             isCapture: targetPiece !== '',
             capturedPiece: targetPiece,
-
-            // Control de tiempo
             startTime: performance.now(),
-            duration: globalJumpDuration, // duración
-            move: move
+            duration: globalJumpDuration,
+            move: move,
+            isRemote: isMoveRemote //online
         };
-        
+
         isAnimating = true;
-
-        //board[move.from.row][move.from.col] = '';
-
         requestAnimationFrame(animationLoop);
     }
+
 
     function animationLoop(timestamp) {
         const elapsedTime = timestamp - animationDetails.startTime;
@@ -378,24 +451,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const currentX = animationDetails.fromX + (animationDetails.toX - animationDetails.fromX) * progress;
-        const jumpHeight = squareSize * globalJumpHeight;
+        const jumpHeight = squareSize * 0.7;
         const parabolicProgress = -4 * jumpHeight * progress * (progress - 1);
         const currentY = animationDetails.fromY + (animationDetails.toY - animationDetails.fromY) * progress - parabolicProgress;
-        
+
         drawSinglePiece(animationDetails.piece, currentX, currentY);
 
         if (progress < 1) {
-            requestAnimationFrame(animationLoop); // animación
+            requestAnimationFrame(animationLoop);
         } else {
-            //explosión.
             if (animationDetails.isCapture) {
                 board[animationDetails.move.to.row][animationDetails.move.to.col] = '';
                 createExplosion(animationDetails.toX, animationDetails.toY, animationDetails.capturedPiece);
                 requestAnimationFrame(explosionLoop);
             } else {
-                 // finalizamos el movimiento.
                 isAnimating = false;
-                makeMove(animationDetails.move.from, animationDetails.move.to);
+                makeMove(animationDetails.move.from, animationDetails.move.to, animationDetails.isRemote);
             }
         }
     }
@@ -421,14 +492,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function explosionLoop() {
         if (!particleExplosion || particleExplosion.length === 0) {
-            // explosión ha terminado
             isAnimating = false;
-            makeMove(animationDetails.move.from, animationDetails.move.to);
+            makeMove(animationDetails.move.from, animationDetails.move.to, animationDetails.isRemote);
             return;
         }
 
         drawGame();
-        
+
         drawSinglePiece(animationDetails.piece, animationDetails.toX, animationDetails.toY);
 
         // Actualiza y dibuja cada partícula
@@ -474,6 +544,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7. clics en canvas
     function handleCanvasClick(event) {
+        if (myPlayerColor && players[currentPlayerIndex].color !== myPlayerColor) {
+            return;
+        }
+
         if (isAiThinking || isAnimating) return;
 
         const rect = canvas.getBoundingClientRect();
@@ -481,13 +555,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = event.clientY - rect.top;
         const col = Math.floor(x / squareSize);
         const row = Math.floor(y / squareSize);
-        
+
         const clickedPieceKey = board[row][col];
 
         if (selectedPiece) {
             const isValidMove = validMoves.some(move => move.row === row && move.col === col);
             if (isValidMove) {
-                animateMove({ from: selectedPiece, to: { row, col } });
+                animateMove({ from: selectedPiece, to: { row, col } }, false);
             } else {
                 if (clickedPieceKey && getPieceColor(clickedPieceKey) === players[currentPlayerIndex].color) {
                     selectPiece(row, col);
@@ -511,9 +585,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function makeMove(from, to) {
+    function makeMove(from, to, isRemoteMove = false) {
         const movingPiece = board[from.row][from.col];
-        
+
         const pieceType = movingPiece.toLowerCase();
         const promotionRank = getPieceColor(movingPiece) === 'white' ? 0 : 7;
 
@@ -526,11 +600,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const opponentColor = players[1 - currentPlayerIndex].color; // Color del oponente
         const opponentKingPos = findKing(opponentColor);
-        
+
         if (!opponentKingPos) {
-            drawGame(); 
+            //drawGame();
             endGame("Jaque Mate");
-            return; 
+            return;
         }
 
         const opponentHasMoves = getAllPossibleMoves(opponentColor).length > 0;
@@ -543,15 +617,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-        
+
         selectedPiece = null;
         validMoves = [];
-        
+
         currentPlayerIndex = 1 - currentPlayerIndex;
         updateTurnIndicator();
         drawGame();
 
-        if (players.length > 1 && players[currentPlayerIndex].isAI) {
+        if (myPlayerColor && !isRemoteMove) {
+            connection.send({ type: 'move', move: { from, to, isRemote: true } }); //online
+        }
+
+        if (players[currentPlayerIndex]?.isAI && !myPlayerColor) { //no online
             triggerAiMove();
         }
     }
@@ -571,7 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (kingPos && !isSquareAttacked(kingPos.row, kingPos.col, ownColor === 'white' ? 'black' : 'white')) {
                 legalMoves.push(move);
             }
-            
+
             // Deshace el movimiento
             board[row][col] = piece;
             board[move.row][move.col] = originalPiece;
@@ -582,7 +660,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getRawValidMoves(piece, row, col) {
         const normalPieceKey = piece.replace('_promoted', '');
         const pieceType = normalPieceKey.toLowerCase();
-        
+
         switch (pieceType) {
             case 'p': return getPawnMoves(row, col, getPieceColor(normalPieceKey));
             case 'r': return getRookMoves(row, col);
@@ -645,7 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // Arriba, Abajo, Izquierda, Derecha
         return getSlidingMoves(row, col, directions);
     }
-    
+
     function getBishopMoves(row, col) {
         const moves = [];
         const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]]; // Diagonales
@@ -656,14 +734,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reina combina los movimientos de la torre y el alfil
         return getRookMoves(row, col).concat(getBishopMoves(row, col));
     }
-    
+
     function getKnightMoves(row, col) {
         const moves = [];
         const directions = [
             [-2, -1], [-2, 1], [-1, -2], [-1, 2],
             [1, -2], [1, 2], [2, -1], [2, 1]
         ];
-        
+
         directions.forEach(dir => {
             const newRow = row + dir[0];
             const newCol = col + dir[1];
@@ -676,14 +754,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return moves;
     }
-    
+
     function getKingMoves(row, col) {
         const moves = [];
         const directions = [
             [-1, -1], [-1, 0], [-1, 1], [0, -1],
             [0, 1], [1, -1], [1, 0], [1, 1]
         ];
-        
+
         directions.forEach(dir => {
             const newRow = row + dir[0];
             const newCol = col + dir[1];
@@ -701,12 +779,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function getSlidingMoves(row, col, directions) {
         const moves = [];
         const ownColor = players[currentPlayerIndex].color;
-        
+
         directions.forEach(dir => {
             let newRow = row + dir[0];
             let newCol = col + dir[1];
-            
-            while(isValidSquare(newRow, newCol)) {
+
+            while (isValidSquare(newRow, newCol)) {
                 const target = board[newRow][newCol];
                 if (target === '') {
                     moves.push({ row: newRow, col: newCol });
@@ -753,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (aiDifficulty) {
             case 'easy':
                 return getEasyMove();
-            
+
             case 'intermediate':
                 currentSearchDepth = 1;
                 break;
@@ -761,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'expert':
                 currentSearchDepth = searchDepth;
                 break;
-            
+
             default:
                 return getEasyMove();
         }
@@ -826,7 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 bestMoves.push(move);
             }
         }
-        
+
         if (bestMoves.length === 0) return null;
         const randomIndex = Math.floor(Math.random() * bestMoves.length);
         return bestMoves[randomIndex];
@@ -835,7 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // FUNCIÓN MINIMAX PRINCIPAL con Poda Alfa-Beta
     function minimax(depth, alpha, beta, isMaximizingPlayer) {
         if (depth === 0) {
-            return evaluateBoard(); 
+            return evaluateBoard();
         }
         const color = isMaximizingPlayer ? 'black' : 'white';
         const allMoves = getAllPossibleMoves(color);
@@ -920,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
     //
     function getPiecePositionValue(piece, row, col) {
         const pieceType = piece.toLowerCase();
-        switch(pieceType) {
+        switch (pieceType) {
             case 'p': return getPieceColor(piece) === 'white' ? pawnEvalWhite[row][col] : pawnEvalBlack[row][col];
             case 'n': return knightEval[row][col];
             case 'b': return getPieceColor(piece) === 'white' ? bishopEvalWhite[row][col] : bishopEvalBlack[row][col];
@@ -941,10 +1019,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 0; i < numberOfPieces; i++) {
             const pieceSpan = document.createElement('span');
-            
+
             pieceSpan.textContent = pieceChars[Math.floor(Math.random() * pieceChars.length)];
             pieceSpan.className = 'bg-piece';
-            
+
             const randomTop = Math.random() * 100;
             const randomLeft = Math.random() * 100;
             const randomSize = Math.random() * 6 + 2;
@@ -956,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pieceSpan.style.fontSize = `${randomSize}em`;
             pieceSpan.style.setProperty('--target-opacity', randomOpacity);
             pieceSpan.style.transform = `rotate(${randomRotation}deg)`;
-            
+
             container.appendChild(pieceSpan);
         }
     }
@@ -971,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAiSelectorVisible) {
             aiLevelSelection.classList.remove('hidden');
             startAiButton.textContent = "Iniciar Partida vs PC";
-            startAiButton.classList.add('confirm-button'); 
+            startAiButton.classList.add('confirm-button');
             isAiSelectorVisible = true;
         } else {
             startGame(true);
@@ -983,9 +1061,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isAiThinking = false; // Desbloquea tablero
         showStartScreen();
     });
-    
+
     mainMenuButton.addEventListener('click', showStartScreen);
-    
+
     resetScoresStartButton.addEventListener('click', () => {
         if (confirm("¿Borrar todas las puntuaciones de 2 jugadores?")) {
             localStorage.removeItem('chessPlayers');
@@ -996,6 +1074,16 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('click', handleCanvasClick);
 
     window.addEventListener('resize', resizeCanvas);
+
+    //online
+    startOnlineButton.addEventListener('click', () => {
+        onlineSetupSection.classList.toggle('hidden');
+        if (!peer) {
+            initializePeer();
+        }
+    });
+
+    connectButton.addEventListener('click', connectToOpponent);
 
     createBackgroundPieces();
     showStartScreen();
