@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDwzJmVxbSOd6SJ5iJ-_zphwGfVXgxbni7E2R-ExYCz5h3jJG92_WiaIzOzhOfIpaAyg/exec';
+
     const canvas = document.getElementById('chessBoard');
     const ctx = canvas.getContext('2d');
 
@@ -48,68 +50,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //ONLINE
 
+    // ===============================================
+    // ===== LÓGICA DE CONEXIÓN EN LÍNEA (FINAL) =====
+    // ===============================================
+
     const startOnlineButton = document.getElementById('start-online-button');
     const onlineSetupSection = document.getElementById('online-setup');
-    const playerIdElem = document.getElementById('player-id');
-    const opponentIdInput = document.getElementById('opponent-id-input');
-    const connectButton = document.getElementById('connect-button');
+    const myNameInput = document.getElementById('my-name-input');
+    const opponentNameInput = document.getElementById('opponent-name-input');
+    const connectByNameButton = document.getElementById('connect-by-name-button');
     const connectionStatus = document.getElementById('connection-status');
 
     let peer;
     let connection;
     let myPlayerColor = null;
+    let myName = '';
 
-    function initializePeer() {
-        // Se conecta al servidor gratuito de PeerJS
-        peer = new Peer();
+    function initializeOnlineMode() {
+        onlineSetupSection.classList.remove('hidden');
+        
+        if (!peer) {
+            connectionStatus.textContent = 'Estableciendo conexión segura...';
+            peer = new Peer();
 
-        peer.on('open', (id) => {
-            console.log('Mi ID de PeerJS es: ' + id);
-            playerIdElem.textContent = id;
-        });
+            peer.on('open', (id) => {
+                connectionStatus.textContent = 'Conexión establecida. Ingresa los nombres.';
+            });
+            
+            peer.on('connection', (conn) => {
+                connection = conn;
+                setupConnectionEvents();
+                myPlayerColor = 'black'; // El que recibe la conexión es Negras
+            });
 
-        // Escucha conexiones entrantes
-        peer.on('connection', (conn) => {
-            connection = conn;
+            peer.on('error', (err) => {
+                console.error(err);
+                connectionStatus.textContent = `Error: ${err.message}`;
+            });
+        }
+    }
+
+    function registerAndConnect() {
+        myName = myNameInput.value.trim();
+        const opponentName = opponentNameInput.value.trim();
+
+        if (!myName || !opponentName) {
+            connectionStatus.textContent = 'Debes ingresar ambos nombres.';
+            return;
+        }
+        if (!peer || !peer.id) {
+            connectionStatus.textContent = 'Esperando ID de conexión. Intenta de nuevo en un segundo.';
+            return;
+        }
+
+        connectionStatus.textContent = 'Registrando tu nombre y buscando oponente...';
+        
+        // 1. Preparamos los datos para registrar
+        const registerData = { action: 'register', name: myName, id: peer.id };
+
+        // 2. Usamos fetch para registrar. QUITAMOS 'no-cors'
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(registerData),
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Error al registrar.');
+            return response.json(); // Leemos la respuesta
+        })
+        .then(data => {
+            if (!data.success) throw new Error(data.message);
+            connectionStatus.textContent = `Buscando a ${opponentName}...`;
+            
+            // 3. Preparamos los datos para buscar al oponente
+            const lookupData = { action: 'lookup', name: opponentName };
+            return fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(lookupData),
+                headers: { 'Content-Type': 'application/json' }
+            });
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Error al buscar al oponente.');
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) throw new Error(data.message);
+            if (!data.id) throw new Error(`${opponentName} encontrado, pero no tiene ID de conexión.`);
+            
+            // 4. Conectamos usando la PeerID encontrada
+            connection = peer.connect(data.id);
+            myPlayerColor = 'white'; // El que inicia la conexión es Blancas
             setupConnectionEvents();
-            // El que recibe la conexión será las negras (jugador 2)
-            myPlayerColor = 'black';
-            startGame(false, true); // Inicia partida localmente, pero en modo online
-        });
-
-        peer.on('error', (err) => {
-            console.error(err);
+        })
+        .catch(err => {
             connectionStatus.textContent = `Error: ${err.message}`;
         });
     }
 
-    function connectToOpponent() {
-        const opponentId = opponentIdInput.value;
-        if (!opponentId) {
-            connectionStatus.textContent = 'Por favor, ingresa una ID.';
-            return;
-        }
-        connection = peer.connect(opponentId);
-        setupConnectionEvents();
-        // El que inicia la conexión será las blancas (jugador 1)
-        myPlayerColor = 'white';
-        startGame(false, true);
-    }
-
     function setupConnectionEvents() {
         connection.on('open', () => {
-            connectionStatus.textContent = '¡Conectado! La partida puede comenzar.';
-            onlineSetupSection.classList.add('hidden'); // Oculta la sección de conexión
+            startGame(false, true);
         });
 
-        // Escucha los datos (movimientos) que envía el oponente
         connection.on('data', (data) => {
             if (data.type === 'move') {
-                // Anima y ejecuta el movimiento recibido del oponente
-                animateMove(data.move, true); // true indica que es un movimiento remoto
+                animateMove(data.move, true);
             }
         });
     }
+
+
+    // function setupConnectionEvents() {
+    //     connection.on('open', () => {
+    //         connectionStatus.textContent = '¡Conectado! La partida puede comenzar.';
+    //         onlineSetupSection.classList.add('hidden'); // Oculta la sección de conexión
+    //     });
+
+    //     // Escucha los datos (movimientos) que envía el oponente
+    //     connection.on('data', (data) => {
+    //         if (data.type === 'move') {
+    //             // Anima y ejecuta el movimiento recibido del oponente
+    //             animateMove(data.move, true); // true indica que es un movimiento remoto
+    //         }
+    //     });
+    // }
 
     //end ONLINE
 
@@ -1041,29 +1106,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isAiSelectorVisible = false;
 
-    start2pButton.addEventListener('click', () => {
-        startGame(false);
-    });
+    function showAiLevelSelector() {
+        aiLevelSelection.classList.remove('hidden');
+        startAiButton.textContent = "Iniciar Partida vs PC";
+        startAiButton.classList.add('confirm-button');
+        isAiSelectorVisible = true;
+    }
 
+    start2pButton.addEventListener('click', () => startGame(false));
+    
     startAiButton.addEventListener('click', () => {
         if (!isAiSelectorVisible) {
-            aiLevelSelection.classList.remove('hidden');
-            startAiButton.textContent = "Iniciar Partida vs PC";
-            startAiButton.classList.add('confirm-button');
-            isAiSelectorVisible = true;
+            showAiLevelSelector();
         } else {
             startGame(true);
         }
     });
-
+    
+    startOnlineButton.addEventListener('click', initializeOnlineMode);
+    connectByNameButton.addEventListener('click', registerAndConnect);
+    
+    mainMenuButton.addEventListener('click', showStartScreen);
     modalMenuButton.addEventListener('click', () => {
-        gameOverModal.classList.add('hidden'); // Oculta modal
-        isAiThinking = false; // Desbloquea tablero
+        gameOverModal.classList.add('hidden');
+        isAiThinking = false;
+        myPlayerColor = null; // Resetea el modo online
         showStartScreen();
     });
-
-    mainMenuButton.addEventListener('click', showStartScreen);
-
     resetScoresStartButton.addEventListener('click', () => {
         if (confirm("¿Borrar todas las puntuaciones de 2 jugadores?")) {
             localStorage.removeItem('chessPlayers');
@@ -1072,18 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('click', handleCanvasClick);
-
     window.addEventListener('resize', resizeCanvas);
-
-    //online
-    startOnlineButton.addEventListener('click', () => {
-        onlineSetupSection.classList.toggle('hidden');
-        if (!peer) {
-            initializePeer();
-        }
-    });
-
-    connectButton.addEventListener('click', connectToOpponent);
 
     createBackgroundPieces();
     showStartScreen();
