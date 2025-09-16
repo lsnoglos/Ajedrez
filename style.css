@@ -123,6 +123,7 @@ button:hover {
 }
 
 .scores-summary h2 {
+    font-size: small;
     margin-top: 0;
     font-weight: 400;
     border-bottom: 1px solid var(--secondary-color);
