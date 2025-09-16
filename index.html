@@ -49,6 +49,22 @@
             <button id="connect-by-name-button">Conectar y Jugar</button>
             <p id="connection-status"></p>
         </div>
+
+        <div id="game-options" class="scores-summary">
+            <h2>Opciones de juego</h3>
+            <label>
+                <input type="checkbox" id="music-checkbox">
+                Música (())
+            </label><br>
+            <label>
+                <input type="checkbox" id="sound-effects-checkbox">
+                Efectos (())
+            </label><br>
+            <label>
+                <input type="checkbox" id="move-guide-checkbox">
+                Línea Guía_
+            </label>
+        </div>
     </div>
 
     <div id="game-screen" class="hidden">
@@ -79,18 +95,18 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-      // Tu configuración personal de Firebase
-      const firebaseConfig = {
-        apiKey: "AIzaSyCYdwbnMKMKZ9GOFvmy3JWghAz6b4C0Z5E",
-        authDomain: "ajedrez-lr.firebaseapp.com",
-        databaseURL: "https://ajedrez-lr-default-rtdb.firebaseio.com",
-        projectId: "ajedrez-lr",
-        storageBucket: "ajedrez-lr.appspot.com",
-        messagingSenderId: "498722901355",
-        appId: "1:498722901355:web:83df4391fdf642c4c8102e"
-      };
-      // Inicializa Firebase
-      firebase.initializeApp(firebaseConfig);
+        // Tu configuración personal de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYdwbnMKMKZ9GOFvmy3JWghAz6b4C0Z5E",
+            authDomain: "ajedrez-lr.firebaseapp.com",
+            databaseURL: "https://ajedrez-lr-default-rtdb.firebaseio.com",
+            projectId: "ajedrez-lr",
+            storageBucket: "ajedrez-lr.appspot.com",
+            messagingSenderId: "498722901355",
+            appId: "1:498722901355:web:83df4391fdf642c4c8102e"
+        };
+        // Inicializa Firebase
+        firebase.initializeApp(firebaseConfig);
     </script>
 
     <script src="script.js"></script>
