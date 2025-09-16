@@ -32,13 +32,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveSound = new Audio('assets/move.wav');
     const captureSound = new Audio('assets/hit.mp3');
 
+    const musicCheckbox = document.getElementById('music-checkbox');
+    const soundEffectsCheckbox = document.getElementById('sound-effects-checkbox');
+    const moveGuideCheckbox = document.getElementById('move-guide-checkbox');
+
+    function loadSettings() {
+        musicCheckbox.checked = localStorage.getItem('music') === 'true';
+        soundEffectsCheckbox.checked = localStorage.getItem('soundEffects') === 'true';
+        moveGuideCheckbox.checked = localStorage.getItem('moveGuide') === 'true';
+        toggleMusic(musicCheckbox.checked);
+    }
+
+    musicCheckbox.addEventListener('change', () => {
+        localStorage.setItem('music', musicCheckbox.checked);
+        toggleMusic(musicCheckbox.checked);
+    });
+
+    soundEffectsCheckbox.addEventListener('change', () => {
+        localStorage.setItem('soundEffects', soundEffectsCheckbox.checked);
+    });
+
+    moveGuideCheckbox.addEventListener('change', () => {
+        localStorage.setItem('moveGuide', moveGuideCheckbox.checked);
+    });
+
+    function playSound(sound) {
+        if (soundEffectsCheckbox.checked) {
+            sound.currentTime = 0;
+            sound.play();
+        }
+    }
+
+    function toggleMusic(isOn) {
+        const gameMusic = document.getElementById('game-music');
+        if (isOn) {
+            gameMusic.play().catch(() => {}); // En caso de bloqueo del navegador
+        } else {
+            gameMusic.pause();
+            gameMusic.currentTime = 0;
+        }
+    }
+
     gameMusic.volume = 0.6;
     menuMusic2.volume = 0.6;
-
-    let hasInteracted = false;
-    document.body.addEventListener('click', () => {
-        hasInteracted = true;
-    }, { once: true });
 
     let size;
     let squareSize;
@@ -74,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let peer;
     let connection;
     let myPlayerColor = null;
+    let playerColor = null;
     let myName = '';
     let opponentName = '';
 
@@ -86,12 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100
     };
 
-    const searchDepth = 4;
-
-    function playSound(sound) {
-        sound.currentTime = 0;
-        sound.play();
-    }
+    const searchDepth = 3;
 
     function initializeOnlineMode() {
         onlineSetupSection.classList.remove('hidden');
@@ -105,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 connectionStatus.textContent = 'Conexión lista. Ingresa los nombres.';
                 connectByNameButton.disabled = false; // Habilita el botón cuando estemos listos
             });
-            
+
             peer.on('connection', (conn) => {
                 connection = conn;
                 setupConnectionEvents();
@@ -143,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         connectionStatus.textContent = `Esperando a ${opponentName}...`;
         const opponentRef = db.ref('players/' + opponentName);
-        
+
         opponentRef.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && data.peerId) {
@@ -158,23 +190,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupConnectionEvents() {
         connection.on('open', () => {
-            // Envía tu nombre a tu oponente
-            connection.send({ type: 'name', name: myName });
+            if (myPlayerColor === 'white') {
+                connection.send({
+                    type: 'init',
+                    board: board,
+                    currentPlayerIndex: 0
+                });
+            }
             connectionStatus.textContent = "Conexión establecida. Esperando nombre del oponente...";
+            startGame(false, true);
+
+            if (myPlayerColor === 'white') {
+                currentPlayerIndex = 0; // Blancas
+            } else {
+                currentPlayerIndex = 1; // Negras
+            }
+
+            updateTurnIndicator();
+            drawGame();
         });
 
         connection.on('data', (data) => {
-            if (data.type === 'move' && data.boardState) {
-                board = data.boardState;
-                animateMove(data.move, true);
-            } else if (data.type === 'name') {
+            if (data.type === 'init') {
                 opponentName = data.name;
-                connectionStatus.textContent = `Conectado con ${opponentName}`;
-                
+                board = data.boardState;
+                currentPlayerIndex = data.currentPlayerIndex;
                 startGame(false, true);
+
+                // 👇 Ajuste aquí también al recibir la data inicial
+                if (myPlayerColor === 'white') {
+                    currentPlayerIndex = 0;
+                } else {
+                    currentPlayerIndex = 1;
+                }
+                updateTurnIndicator();
+                drawGame();
+            } else if (data.type === 'move') {
+                //board = data.boardState;
+                animateMove(data.move, true);
             }
         });
     }
+
 
     ////////////////////////
     function resizeCanvas() {
@@ -254,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showStartScreen() {
 
-        if (hasInteracted) {
+        if (musicCheckbox.checked) {
             gameMusic.pause();
             menuMusic2.play();
         }
@@ -284,11 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // START ONLINE
     function startGame(vsAI, isOnline = false) {
 
-        if (hasInteracted) {
+        if (musicCheckbox.checked) {
             menuMusic2.pause();
             gameMusic.play();
         }
-    
+
         isAiActive = vsAI;
         if (!isOnline) { // Solo lee la dificultad si no es online
             aiDifficulty = aiLevelSelect.value;
@@ -299,12 +356,12 @@ document.addEventListener('DOMContentLoaded', () => {
         initGame();
     }
 
-    function initGame() {
-
+    function initGame(isOnline = false) {
         resizeCanvas();
-
-        initializeBoard();
-        currentPlayerIndex = 0;
+        if (!isOnline) {
+            initializeBoard();
+            currentPlayerIndex = 0;
+        }
         selectedPiece = null;
         validMoves = [];
         drawGame();
@@ -314,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Configura jugadores..
     function setupPlayers(isOnline = false) {
         if (isOnline) {
+            // nombres
             const whitePlayerName = (myPlayerColor === 'white') ? myName : opponentName;
             const blackPlayerName = (myPlayerColor === 'black') ? myName : opponentName;
             players = [
@@ -321,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 { name: blackPlayerName, score: 0, color: 'black', isAI: false }
             ];
         } else {
+            // 
             const storedPlayers = JSON.parse(localStorage.getItem('chessPlayers'));
             if (isAiActive) {
                 const player1Name = storedPlayers ? storedPlayers[0].name : "Jugador 1";
@@ -386,7 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
         player2ScoreElem.textContent = players[1].score;
     }
 
-
     function updateTurnIndicator() {
         if (currentPlayerIndex === 0) {
             player1InfoElem.classList.add('active');
@@ -437,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const pieceKey = board[row][col];
-                
+
                 if (pieceKey) {
                     if (isAnimating && animationDetails.move.from.row === row && animationDetails.move.from.col === col) {
                         continue;
@@ -498,9 +556,9 @@ document.addEventListener('DOMContentLoaded', () => {
             duration: globalJumpDuration,
             move: move,
             isRemote: isRemoteMove,
-            boardState: isRemoteMove ? data.boardState : null 
+            boardState: isRemoteMove ? data.boardState : null
         };
-        
+
         isAnimating = true;
         requestAnimationFrame(animationLoop);
     }
@@ -529,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
             requestAnimationFrame(animationLoop);
         } else {
             if (animationDetails.isCapture) {
-                
+
                 playSound(captureSound);
 
                 if (!animationDetails.isRemote) {
@@ -600,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Resalta pieza
     function highlightSelectedPiece() {
-        if (selectedPiece) {
+        if (selectedPiece && moveGuideCheckbox.checked) {
             ctx.strokeStyle = '#4CAF50';
             ctx.lineWidth = 3;
             ctx.strokeRect(selectedPiece.col * squareSize, selectedPiece.row * squareSize, squareSize, squareSize);
@@ -608,14 +666,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function highlightValidMoves() {
-        ctx.fillStyle = 'rgba(76, 175, 80, 0.5)'; // Círculo verde
-        validMoves.forEach(move => {
-            const x = move.col * squareSize + squareSize / 2;
-            const y = move.row * squareSize + squareSize / 2;
-            ctx.beginPath();
-            ctx.arc(x, y, squareSize / 4, 0, 2 * Math.PI);
-            ctx.fill();
-        });
+        if (moveGuideCheckbox.checked) {
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.5)'; // Círculo verde
+            validMoves.forEach(move => {
+                const x = move.col * squareSize + squareSize / 2;
+                const y = move.row * squareSize + squareSize / 2;
+                ctx.beginPath();
+                ctx.arc(x, y, squareSize / 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
     }
 
     // 7. clics en canvas
@@ -661,15 +721,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function makeMove(from, to, isRemoteMove = false, boardState = null) {
 
         if (isRemoteMove) {
-            if (boardState) {
-                board = boardState; // Sincroniza el tablero
-            }
+            // Los movimientos remotos solo actualizan el estado local.
+            board = boardState;
             selectedPiece = null;
             validMoves = [];
             currentPlayerIndex = 1 - currentPlayerIndex;
             updateTurnIndicator();
             drawGame();
-            return; // Termina ejecución receptor
+            return;
         }
 
         //local
@@ -683,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pieceType === 'p' && to.row === promotionRank) {
             finalPiece = getPieceColor(movingPiece) === 'white' ? 'q_promoted' : 'Q_promoted';
         }
-        
+
         board[to.row][to.col] = finalPiece;
         board[from.row][from.col] = '';
 
@@ -699,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
             endGame(isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color) ? "Jaque Mate" : "Ahogado (Empate)");
             return;
         }
-        
+
         // La partida continúa...
         selectedPiece = null;
         validMoves = [];
@@ -708,12 +767,16 @@ document.addEventListener('DOMContentLoaded', () => {
         drawGame();
 
         // Envía los datos a la red
+
         if (myPlayerColor && !isRemoteMove) {
-            connection.send({ 
-                type: 'move', 
-                move: { from, to, piece: finalPiece },
-                boardState: board 
-            });
+            if (players[currentPlayerIndex].color === myPlayerColor) {
+                const finalPiece = board[to.row][to.col];
+                connection.send({
+                    type: 'move',
+                    move: { from, to, piece: finalPiece },
+                    boardState: board
+                });
+            }
         }
 
         // Activa la IA si corresponde
@@ -922,7 +985,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             case 'intermediate':
-                currentSearchDepth = 3;
+                currentSearchDepth = 2;
                 break;
 
             case 'expert':
@@ -943,6 +1006,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Experto e intermedio
+    // function getExpertMove(depth) {
+    //     let bestScore = -Infinity;
+    //     let bestMoves = [];
+    //     const allMoves = getAllPossibleMoves('black');
+
+    //     for (const move of allMoves) {
+    //         // Simula el movimiento
+    //         const originalPiece = board[move.to.row][move.to.col];
+    //         board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+    //         board[move.from.row][move.from.col] = '';
+
+    //         // Llama a minimax con profundidad
+    //         const score = minimax(depth - 1, -Infinity, Infinity, false);
+
+    //         // Deshace el movimiento
+    //         board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
+    //         board[move.to.row][move.to.col] = originalPiece;
+
+    //         if (score > bestScore) {
+    //             bestScore = score;
+    //             bestMoves = [move];
+    //         } else if (score === bestScore) {
+    //             bestMoves.push(move);
+    //         }
+    //     }
+
+    //     if (bestMoves.length === 0) return null;
+    //     const randomIndex = Math.floor(Math.random() * bestMoves.length);
+    //     return bestMoves[randomIndex];
+    // }
+
     function getExpertMove(depth) {
         let bestScore = -Infinity;
         let bestMoves = [];
@@ -970,9 +1064,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (bestMoves.length === 0) return null;
-        const randomIndex = Math.floor(Math.random() * bestMoves.length);
-        return bestMoves[randomIndex];
+
+        // Escoge el mejor movimiento según evaluateMoveSafety
+        const bestMove = bestMoves.reduce((prev, move) => {
+            return evaluateMoveSafety(move) > evaluateMoveSafety(prev) ? move : prev;
+        });
+
+        return bestMove;
     }
+
+
+    function evaluateMoveSafety(move) {
+        const tempPiece = board[move.to.row][move.to.col];
+        // Mueve temporalmente la pieza
+        board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+        board[move.from.row][move.from.col] = '';
+
+        const kingPos = findKing('black'); // suponiendo que la IA es negra
+        let score = 0;
+
+        if (isSquareAttacked(kingPos.row, kingPos.col, 'white')) {
+            score -= 1000; // penaliza si el rey está en jaque
+        }
+
+        // Deshacer el movimiento
+        board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
+        board[move.to.row][move.to.col] = tempPiece;
+
+        return score;
+    }
+
 
     // FUNCIÓN MINIMAX PRINCIPAL con Poda Alfa-Beta
     function minimax(depth, alpha, beta, isMaximizingPlayer) {
@@ -1040,6 +1161,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     //
+    // function evaluateBoard() {
+    //     let totalScore = 0;
+    //     for (let row = 0; row < 8; row++) {
+    //         for (let col = 0; col < 8; col++) {
+    //             const piece = board[row][col];
+    //             if (piece) {
+    //                 const value = pieceValues[piece.toLowerCase()] || 0;
+    //                 const posValue = getPiecePositionValue(piece, row, col);
+    //                 if (getPieceColor(piece) === 'black') {
+    //                     totalScore += value + posValue;
+    //                 } else {
+    //                     totalScore -= (value + posValue);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     return totalScore;
+    // }
+
     function evaluateBoard() {
         let totalScore = 0;
         for (let row = 0; row < 8; row++) {
@@ -1048,16 +1188,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (piece) {
                     const value = pieceValues[piece.toLowerCase()] || 0;
                     const posValue = getPiecePositionValue(piece, row, col);
-                    if (getPieceColor(piece) === 'black') {
-                        totalScore += value + posValue;
-                    } else {
-                        totalScore -= (value + posValue);
+                    let score = value + posValue;
+
+                    // Seguridad del rey
+                    if (piece.toLowerCase() === 'k') {
+                        score -= countAttacksAroundKing(getPieceColor(piece)) * 0.5;
                     }
+
+                    // Movilidad
+                    const moves = getValidMoves(piece, row, col);
+                    score += moves.length * 0.1;
+
+                    if (getPieceColor(piece) === 'black') totalScore += score;
+                    else totalScore -= score;
                 }
             }
         }
         return totalScore;
     }
+
+    function countAttacksAroundKing(color) {
+        const kingPos = findKing(color);
+        if (!kingPos) return 0;
+        const opponentColor = color === 'white' ? 'black' : 'white';
+        const attacks = getAllPossibleMoves(opponentColor, true);
+        return attacks.filter(m => Math.abs(m.to.row - kingPos.row) <= 1 && Math.abs(m.to.col - kingPos.col) <= 1).length;
+    }
+
 
     //
     function getPiecePositionValue(piece, row, col) {
@@ -1113,7 +1270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     start2pButton.addEventListener('click', () => startGame(false));
-    
+
     startAiButton.addEventListener('click', () => {
         if (!isAiSelectorVisible) {
             showAiLevelSelector();
@@ -1121,10 +1278,10 @@ document.addEventListener('DOMContentLoaded', () => {
             startGame(true);
         }
     });
-    
+
     startOnlineButton.addEventListener('click', initializeOnlineMode);
     connectByNameButton.addEventListener('click', registerAndConnect);
-    
+
     mainMenuButton.addEventListener('click', showStartScreen);
     modalMenuButton.addEventListener('click', () => {
         gameOverModal.classList.add('hidden');
@@ -1145,4 +1302,5 @@ document.addEventListener('DOMContentLoaded', () => {
     createBackgroundPieces();
     showStartScreen();
     resizeCanvas();
+    loadSettings();
 });
