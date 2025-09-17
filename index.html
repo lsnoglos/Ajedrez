@@ -18,14 +18,14 @@
     <div id="background-container"></div>
     <div id="start-screen">
         <h1>AJEDREZ LR</h1>
-        <div class="scores-summary hidden">
+        <!-- <div class="scores-summary hidden">
             <h2>Puntuaciones (2 Jugadores)</h2>
             <p id="summary-p1">Jugador 1: 0 victorias</p>
             <p id="summary-p2">Jugador 2: 0 victorias</p>
-        </div>
+        </div> -->
         <div class="menu-buttons">
-            <button id="start-2p-button">2 Jugadores (Local)</button>
-            <button id="start-ai-button">Contra la PC</button>
+            <button id="start-2p-button" type="button">2 Jugadores (Local)</button>
+            <button id="start-ai-button" type="button">Contra la PC</button>
 
             <div id="ai-level-selection" class="hidden">
                 <label for="ai-level-start">Dificultad:</label>
@@ -49,22 +49,46 @@
             <button id="connect-by-name-button">Conectar y Jugar</button>
             <p id="connection-status"></p>
         </div>
+    </div>
 
-        <div id="game-options" class="scores-summary">
-            <h2>Opciones de juego</h3>
-            <label>
-                <input type="checkbox" id="music-checkbox">
-                Música (())
-            </label><br>
-            <label>
-                <input type="checkbox" id="sound-effects-checkbox">
-                Efectos (())
-            </label><br>
-            <label>
-                <input type="checkbox" id="move-guide-checkbox">
-                Línea Guía_
-            </label>
-        </div>
+    <button id="settings-button" style="
+    position: fixed;
+    top: 10px;
+    right: 0px;
+    font-size: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 1000;">⚙️</button>
+
+    <div id="settings-modal" class="hidden" style="
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #335b86;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 1001;">
+        <h2>Opciones de juego</h2>
+        <label>
+            <input type="checkbox" id="music-checkbox">
+            Música
+        </label><br>
+        <label>
+            <input type="checkbox" id="sound-effects-checkbox">
+            Efectos
+        </label><br>
+        <label>
+            <input type="checkbox" id="move-guide-checkbox">
+            Mostrar guía de saltos
+        </label><br>
+        <label>
+            <input type="checkbox" id="threat-guide-checkbox">
+            Mostrar amenazas en movimientos
+        </label><br><br>
+        <button id="close-settings">Cerrar</button>
     </div>
 
     <div id="game-screen" class="hidden">
