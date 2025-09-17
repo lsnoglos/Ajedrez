@@ -2,7 +2,7 @@
 
 :root {
     --bg-color: #1a1a2e;
-    --primary-color: #16213e;
+    --primary-color: #16213e6f;
     --secondary-color: #0f3460;
     --accent-color: #e94560;
     --text-color: #dcdcdc;
@@ -167,7 +167,7 @@ button {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(26, 26, 46, 0.8);
+    background-color: rgba(47, 85, 155, 0.198);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -177,7 +177,7 @@ button {
 }
 
 .modal-content {
-    background: linear-gradient(145deg, var(--primary-color), var(--secondary-color));
+    background: #1d3d5c29;
     padding: 40px 60px;
     border-radius: 10px;
     text-align: center;
@@ -187,7 +187,7 @@ button {
 
 .modal-content h2 {
     margin-top: 0;
-    color: #4975a1;
+    color: #aed5fc67;
     font-size: 2em;
     text-shadow: 0 0 8px var(--accent-color);
 }
@@ -268,4 +268,36 @@ button.confirm-button {
 
 #settings-modal {
     display: block;
+}
+
+/* Captures */
+
+#game-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 15px 0;
+}
+
+.player-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 8px 0;
+}
+
+.player-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: var(--text-color);
+}
+
+.captured-pieces {
+    display: flex;
+    flex-wrap: wrap;
+    min-height: 30px;
+    justify-content: center;
+    gap: 5px;
+    font-size: 1.5em;
 }
