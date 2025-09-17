@@ -1036,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getValidMoves(piece, row, col) {
         const rawMoves = getRawValidMoves(piece, row, col);
         const legalMoves = [];
-        //const ownColor = getPieceColor(piece);
+        const ownColor = getPieceColor(piece);
 
         for (const move of rawMoves) {
             // Simula el movimiento
@@ -1044,10 +1044,10 @@ document.addEventListener('DOMContentLoaded', () => {
             board[move.row][move.col] = piece;
             board[row][col] = '';
 
-            //const kingPos = findKing(ownColor);
-            // if (kingPos && !isSquareAttacked(kingPos.row, kingPos.col, ownColor === 'white' ? 'black' : 'white')) {
-            //     legalMoves.push(move);
-            // }
+            const kingPos = findKing(ownColor);
+            if (kingPos && !isSquareAttacked(kingPos.row, kingPos.col, ownColor === 'white' ? 'black' : 'white')) {
+                legalMoves.push(move);
+            }
 
             // Deshace el movimiento
             board[row][col] = piece;
@@ -1492,4 +1492,4 @@ document.addEventListener('DOMContentLoaded', () => {
     showStartScreen();
     resizeCanvas();
     loadSettings();
-}); 
+});
