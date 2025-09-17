@@ -98,7 +98,82 @@ document.addEventListener('DOMContentLoaded', () => {
         'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9, 'k': 100
     };
 
+    //capturas 
+
+    // const whiteCapturedElem = document.getElementById("white-captured");
+    // const blackCapturedElem = document.getElementById("black-captured");
+    // const whitePlayerNameElem = document.getElementById("white-player-name");
+    // const blackPlayerNameElem = document.getElementById("black-player-name");
+
+    // let capturedPieces = {
+    //     white: [],
+    //     black: []
+    // };
+
+    // function addCapturedPiece(piece, capturerColor) {
+    //     if (capturerColor === "white") {
+    //         capturedPieces.white.push(piece);
+    //         renderCapturedPieces("white");
+    //     } else {
+    //         capturedPieces.black.push(piece);
+    //         renderCapturedPieces("black");
+    //     }
+    // }
+
+    // function renderCapturedPieces(color) {
+    //     const container = (color === "white") ? whiteCapturedElem : blackCapturedElem;
+    //     container.innerHTML = "";
+    //     capturedPieces[color].forEach(p => {
+    //         const span = document.createElement("span");
+    //         span.textContent = pieces[p] || p; // usa el diccionario de símbolos
+    //         container.appendChild(span);
+    //     });
+    // }
+
+    // function resetCapturedPieces() {
+    //     capturedPieces.white = [];
+    //     capturedPieces.black = [];
+    //     renderCapturedPieces("white");
+    //     renderCapturedPieces("black");
+    // }
+
+
+
+    // MEJORAS /////////////////////////////////////////////////////////////////////////////////////////////////
+
+    let transpositionTable = {}; // memoria IA
+    let zobristKeys = {};      // claves piezas / casillas
+    let moveHistory = [];      // registra movimientos
+
     const searchDepth = 3;
+
+    function initZobrist() {
+        zobristKeys = {};
+        const pieces = ['P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k'];
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                zobristKeys[`${r},${c}`] = {};
+                for (const piece of pieces) {
+                    zobristKeys[`${r},${c}`][piece] = Math.floor(Math.random() * Math.pow(2, 53));
+                }
+            }
+        }
+    }
+
+    function getBoardHash() {
+        let hash = 0;
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                const piece = board[r][c];
+                if (piece) {
+                    hash ^= zobristKeys[`${r},${c}`][piece];
+                }
+            }
+        }
+        return hash;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //OTROS LOCALSTORE, SOUNDS
 
@@ -272,9 +347,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function initGame(isOnline = false) {
         resizeCanvas();
         if (!isOnline) {
+            //MEJORA ////////////////////////////////////////////////////////
+            initZobrist(); //prepara memoria IA
             initializeBoard();
             currentPlayerIndex = 0;
+            moveHistory = []; // resetea historial de jugadas
         }
+
+        //resetCapturedPieces();
+        //whitePlayerNameElem.textContent = players.find(p => p.color === "white").name;
+        //blackPlayerNameElem.textContent = players.find(p => p.color === "black").name;
+
         selectedPiece = null;
         validMoves = [];
         drawGame();
@@ -404,7 +487,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return (pieceKey === pieceKey.toUpperCase()) ? 'black' : 'white';
     }
 
-
+    // verifica si piezas no se salen del tablero
+    function isValidSquare(row, col) {
+        return row >= 0 && row < 8 && col >= 0 && col < 8;
+    }
 
     // Dibujando tablero y piezas, y movimientos ----------------------------------------------
 
@@ -545,7 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pieceKey && getPieceColor(pieceKey) === players[currentPlayerIndex].color) {
             selectedPiece = { piece: pieceKey, row, col };
             validMoves = getValidMoves(pieceKey, row, col);
-            
             updateThreats(); 
         }
     }
@@ -579,20 +664,24 @@ document.addEventListener('DOMContentLoaded', () => {
         validMoves.forEach(move => {
             const isThreatened = threatSet.has(`${move.row},${move.col}`);
 
-            if (isThreatened) {
-                // movimiento arriesgado
-                if (threatGuideCheckbox.checked) {
-                    drawCircle(move.col, move.row, 'rgba(255, 80, 80, 0.6)'); // Rojo
+            if (moveGuideCheckbox.checked) {
+                // si guia activa, dibuja verde
+                let color = 'rgba(76, 175, 80, 0.5)'; 
+
+                // si riesgo activado, dibuja rojo
+                if (isThreatened && threatGuideCheckbox.checked) {
+                    color = 'rgba(255, 80, 80, 0.6)'; // Rojo
                 }
-            } else {
-                // movimiento legal y seguro
-                if (moveGuideCheckbox.checked) {
-                    drawCircle(move.col, move.row, 'rgba(76, 175, 80, 0.5)'); // Verde
-                }
+                
+                drawCircle(move.col, move.row, color);
+
+            } else if (threatGuideCheckbox.checked && isThreatened) {
+                // si solo riesgo activado, dibuja rojo
+                drawCircle(move.col, move.row, 'rgba(255, 80, 80, 0.6)'); // Rojo
             }
         });
 
-        // Dibuja las AMENAZAS POTENCIALES para Peones (Naranja) ---
+        // si amenaza activa, marca potencialmente riesgoso
         if (threatGuideCheckbox.checked && selectedPiece.piece.toLowerCase().replace('_promoted', '') === 'p') {
             const color = getPieceColor(selectedPiece.piece);
             const direction = color === 'white' ? -1 : 1;
@@ -1135,15 +1224,74 @@ document.addEventListener('DOMContentLoaded', () => {
         return score;
     }
 
-    // Verifica si una casilla específica está siendo atacada por el color opuesto
+    // MEJORA /////////////////////////////////////////////////////////////////////////////
+
     function isSquareAttacked(row, col, attackerColor) {
-        const allOpponentMoves = getAllPossibleMoves(attackerColor, true); // true para una búsqueda "bruta"
-        return allOpponentMoves.some(move => move.to.row === row && move.to.col === col);
+        // 1. Revisa ataques de PEONES
+        const pawnDirection = (attackerColor === 'white') ? 1 : -1;
+        const pawnRow = row + pawnDirection;
+        for (let pawnCol of [col - 1, col + 1]) {
+            if (isValidSquare(pawnRow, pawnCol)) {
+                const p = board[pawnRow][pawnCol];
+                if (p && getPieceColor(p) === attackerColor && p.toLowerCase() === 'p') {
+                    return true;
+                }
+            }
+        }
+
+        // 2. Revisa ataques de CABALLO
+        const knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        for (const move of knightMoves) {
+            const newRow = row + move[0];
+            const newCol = col + move[1];
+            if (isValidSquare(newRow, newCol)) {
+                const p = board[newRow][newCol];
+                if (p && getPieceColor(p) === attackerColor && p.toLowerCase() === 'n') {
+                    return true;
+                }
+            }
+        }
+
+        // 3. Revisa ataques de REY
+        const kingMoves = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        for (const move of kingMoves) {
+            const newRow = row + move[0];
+            const newCol = col + move[1];
+            if (isValidSquare(newRow, newCol)) {
+                const p = board[newRow][newCol];
+                if (p && getPieceColor(p) === attackerColor && p.toLowerCase() === 'k') {
+                    return true;
+                }
+            }
+        }
+        
+        // 4. Revisa ataques "deslizantes" (TORRE, ALFIL, REINA)
+        const slidingDirections = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+        for (const dir of slidingDirections) {
+            let r = row + dir[0];
+            let c = col + dir[1];
+            while (isValidSquare(r, c)) {
+                const p = board[r][c];
+                if (p) { // Si encuentra una pieza, la analiza y detiene la búsqueda en esta dirección
+                    if (getPieceColor(p) === attackerColor) {
+                        const pType = p.toLowerCase().replace('_promoted','');
+                        if (pType === 'q' || 
+                           ( (dir[0] === 0 || dir[1] === 0) && pType === 'r' ) || 
+                           ( (dir[0] !== 0 && dir[1] !== 0) && pType === 'b') ) {
+                            return true; // Encontró un atacante
+                        }
+                    }
+                    break; // La vista está bloqueada por otra pieza, ya no sigue
+                }
+                r += dir[0];
+                c += dir[1];
+            }
+        }
+
+        return false;
     }
 
-    function isValidSquare(row, col) {
-        return row >= 0 && row < 8 && col >= 0 && col < 8;
-    }
+    ///////////////////////////////////////////////////////////////////////////////////////
 
     // LEVELS -----------------------------------------------------------------------------------------------
 
@@ -1154,21 +1302,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (aiDifficulty) {
             case 'easy':
-                currentSearchDepth = 1;
-                break;
+                const easyMoves = getAllPossibleMoves('black');
+                if (easyMoves.length === 0) return null;
+                return easyMoves[Math.floor(Math.random() * easyMoves.length)];
 
             case 'intermediate':
-                currentSearchDepth = 2;
-                break;
+                return getExpertMove(0)
 
             case 'expert':
-                currentSearchDepth = searchDepth;
-                break;
+                return getExpertMove(1)
 
             default:
                 return getEasyMove();
         }
-        return getExpertMove(currentSearchDepth);
     }
 
     //movimiento AI
@@ -1213,11 +1359,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // local
         const movingPiece = board[from.row][from.col];
+        //const targetPiece = board[to.row][to.col];
+
         if (!movingPiece) return;
 
         const pieceType = movingPiece.toLowerCase().replace('_promoted', '');
         const promotionRank = getPieceColor(movingPiece) === 'white' ? 0 : 7;
-        let finalPiece = movingPiece;
+        let finalPiece = movingPiece;        
+
+        // if (targetPiece) {
+        //     const capturerColor = getPieceColor(movingPiece); 
+        //     const normalizedPiece = targetPiece.replace("_promoted", "");
+        //     addCapturedPiece(normalizedPiece, capturerColor);
+        // }
 
         if (pieceType === 'p' && to.row === promotionRank) {
             finalPiece = getPieceColor(movingPiece) === 'white' ? 'q_promoted' : 'Q_promoted';
@@ -1272,23 +1426,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return allMoves[Math.floor(Math.random() * allMoves.length)];
     }
 
-    //dificultad
+    // MEJORA /////////////////////////////////////////////////////////////////////////
+
     function getExpertMove(depth) {
+        transpositionTable = {}; // Limpia la memoria en cada turno
         let bestScore = -Infinity;
         let bestMoves = [];
         const allMoves = getAllPossibleMoves('black');
 
+        // Ordena los movimientos para que la poda sea más efectiva (capturas primero)
+        allMoves.sort((a, b) => getPieceValue(board[b.to.row][b.to.col]) - getPieceValue(board[a.to.row][a.to.col]));
+
         for (const move of allMoves) {
-            // Simula el movimiento
             const originalPiece = board[move.to.row][move.to.col];
-            board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+            board[move.to.row][move.to.col] = move.from.piece;
             board[move.from.row][move.from.col] = '';
 
-            // Llama a minimax con profundidad
             const score = minimax(depth - 1, -Infinity, Infinity, false);
 
-            // Deshace el movimiento
-            board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
+            board[move.from.row][move.from.col] = move.from.piece;
             board[move.to.row][move.to.col] = originalPiece;
 
             if (score > bestScore) {
@@ -1298,61 +1454,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 bestMoves.push(move);
             }
         }
-
         if (bestMoves.length === 0) return null;
-
-        // Escoge el movimiento más seguro (huida)
-        const safestMove = bestMoves.reduce((prev, move) => {
-            return evaluateMoveSafety(move) > evaluateMoveSafety(prev) ? move : prev;
-        });
-
-        return safestMove;
+        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
     }
 
-    // FUNCIÓN MINIMAX PRINCIPAL con Poda Alfa-Beta
     function minimax(depth, alpha, beta, isMaximizingPlayer) {
+        const boardHash = getBoardHash();
+        if (transpositionTable[boardHash] && transpositionTable[boardHash].depth >= depth) {
+            return transpositionTable[boardHash].score;
+        }
+
         if (depth === 0) {
             return quiescenceSearch(alpha, beta, isMaximizingPlayer);
         }
+
         const color = isMaximizingPlayer ? 'black' : 'white';
         const allMoves = getAllPossibleMoves(color);
+
         if (allMoves.length === 0) {
-            return evaluateBoard();
+            const kingPos = findKing(color);
+            if (kingPos && isSquareAttacked(kingPos.row, kingPos.col, color === 'white' ? 'black' : 'white')) {
+                return isMaximizingPlayer ? -Infinity - depth : Infinity + depth; // Jaque mate (prioriza mates más rápidos)
+            }
+            return 0; // Ahogado
         }
+
+        let bestValue;
         if (isMaximizingPlayer) {
-            let maxEval = -Infinity;
+            bestValue = -Infinity;
             for (const move of allMoves) {
                 const originalPiece = board[move.to.row][move.to.col];
-                board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+                board[move.to.row][move.to.col] = move.from.piece;
                 board[move.from.row][move.from.col] = '';
+                
                 const evaluation = minimax(depth - 1, alpha, beta, false);
-                board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
+                
+                board[move.from.row][move.from.col] = move.from.piece;
                 board[move.to.row][move.to.col] = originalPiece;
-                maxEval = Math.max(maxEval, evaluation);
+                
+                bestValue = Math.max(bestValue, evaluation);
                 alpha = Math.max(alpha, evaluation);
                 if (beta <= alpha) {
-                    break;
+                    break; // Poda Beta
                 }
             }
-            return maxEval;
-        } else {
-            let minEval = Infinity;
+        } else { // Minimizando (jugador blanco)
+            bestValue = Infinity;
             for (const move of allMoves) {
                 const originalPiece = board[move.to.row][move.to.col];
-                board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
+                board[move.to.row][move.to.col] = move.from.piece;
                 board[move.from.row][move.from.col] = '';
+
                 const evaluation = minimax(depth - 1, alpha, beta, true);
-                board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
+
+                board[move.from.row][move.from.col] = move.from.piece;
                 board[move.to.row][move.to.col] = originalPiece;
-                minEval = Math.min(minEval, evaluation);
+
+                bestValue = Math.min(bestValue, evaluation);
                 beta = Math.min(beta, evaluation);
                 if (beta <= alpha) {
-                    break;
+                    break; // Poda Alfa
                 }
             }
-            return minEval;
         }
+        
+        // Guardado en memoria y retorno del valor FINAL
+        transpositionTable[boardHash] = { depth: depth, score: bestValue };
+        return bestValue;
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////
 
     // ajustes generales ----------------------------------------------------------------------------------
 
@@ -1471,13 +1642,15 @@ document.addEventListener('DOMContentLoaded', () => {
     startOnlineButton.addEventListener('click', initializeOnlineMode);
     connectByNameButton.addEventListener('click', registerAndConnect);
 
-    mainMenuButton.addEventListener('click', showStartScreen);
+    // mainMenuButton.addEventListener('click', showStartScreen);
+
     modalMenuButton.addEventListener('click', () => {
         gameOverModal.classList.add('hidden');
         isAiThinking = false;
         myPlayerColor = null; // Resetea el modo online
         showStartScreen();
     });
+
     resetScoresStartButton.addEventListener('click', () => {
         if (confirm("¿Borrar todas las puntuaciones de 2 jugadores?")) {
             localStorage.removeItem('chessPlayers');
