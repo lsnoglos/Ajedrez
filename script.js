@@ -1492,4 +1492,4 @@ document.addEventListener('DOMContentLoaded', () => {
     showStartScreen();
     resizeCanvas();
     loadSettings();
-});
+}); 
