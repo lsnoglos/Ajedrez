@@ -76,12 +76,12 @@ button {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-button:hover {
+/* button:hover {
     background-color: var(--accent-color);
     color: #fff;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-}
+} */
 
 #ai-controls {
     width: 95%;
@@ -187,7 +187,7 @@ button:hover {
 
 .modal-content h2 {
     margin-top: 0;
-    color: #fff;
+    color: #4975a1;
     font-size: 2em;
     text-shadow: 0 0 8px var(--accent-color);
 }
@@ -253,4 +253,19 @@ button.confirm-button {
 #online-setup strong {
     color: var(--highlight-color);
     user-select: all; /* Permite copiar la ID fácilmente */
+}
+
+.menu-buttons button.active {
+  background-color: var(--accent-color);
+  color: #6384b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+#settings-modal.hidden {
+    display: none;
+}
+
+#settings-modal {
+    display: block;
 }
