@@ -1642,7 +1642,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startOnlineButton.addEventListener('click', initializeOnlineMode);
     connectByNameButton.addEventListener('click', registerAndConnect);
 
-    // mainMenuButton.addEventListener('click', showStartScreen);
+    mainMenuButton.addEventListener('click', showStartScreen);
 
     modalMenuButton.addEventListener('click', () => {
         gameOverModal.classList.add('hidden');
