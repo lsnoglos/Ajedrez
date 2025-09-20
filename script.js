@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     menuMusic.volume = 0.4;
     menuMusic2.volume = 0.4;
 
-    const moveSound = new Audio('assets/move.wav');
+    const moveSound = new Audio('assets/move.mp3');
     const captureSound = new Audio('assets/hit.mp3');
 
     const musicCheckbox = document.getElementById('music-checkbox');
