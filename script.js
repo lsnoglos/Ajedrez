@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const winnerMessage = document.getElementById('winner-message');
     const modalMenuButton = document.getElementById('modal-menu-button');
 
+    const promotionModal = document.getElementById('promotion-modal');
+    const promotionChoices = document.querySelectorAll('.promotion-choice');
+
     //sonido
 
     const menuMusic = document.getElementById('menu-music');
@@ -71,6 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const globalJumpGravity = 0.2;
     let particleExplosion = null;
 
+    let isAwaitingPromotion = false;
+    let promotionDetails = null;
+
     //ONLINE
 
     const startOnlineButton = document.getElementById('start-online-button');
@@ -99,6 +105,40 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     //capturas 
+
+    const player1CapturedElem = document.getElementById('player1-captured');
+    const player2CapturedElem = document.getElementById('player2-captured');
+
+    let capturedPieces;
+
+    function addCapturedPiece(piece, capturerColor) {
+        if (capturerColor === 'white') {
+            capturedPieces.white.push(piece);
+        } else {
+            capturedPieces.black.push(piece);
+        }
+        renderCapturedPieces();
+    }
+
+    function renderCapturedPieces() {
+        // Ordena
+        capturedPieces.white.sort((a, b) => getPieceValue(a) - getPieceValue(b));
+        capturedPieces.black.sort((a, b) => getPieceValue(a) - getPieceValue(b));
+
+        player1CapturedElem.innerHTML = '';
+        capturedPieces.black.forEach(p => {
+            const span = document.createElement("span");
+            span.textContent = pieces[p.replace('_promoted', '')];
+            player1CapturedElem.appendChild(span);
+        });
+
+        player2CapturedElem.innerHTML = '';
+        capturedPieces.white.forEach(p => {
+            const span = document.createElement("span");
+            span.textContent = pieces[p.replace('_promoted', '')];
+            player2CapturedElem.appendChild(span);
+        });
+    }
 
     // const whiteCapturedElem = document.getElementById("white-captured");
     // const blackCapturedElem = document.getElementById("black-captured");
@@ -329,10 +369,10 @@ document.addEventListener('DOMContentLoaded', () => {
         //displayScoresSummary();
     }
 
-        // START
+    // START
     function startGame(vsAI, isOnline = false) {
 
-        playMusic('game'); 
+        playMusic('game');
 
         isAiActive = vsAI;
         if (!isOnline) { // Solo lee la dificultad si no es online
@@ -345,6 +385,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initGame(isOnline = false) {
+
+        capturedPieces = { white: [], black: [] };
+
+        renderCapturedPieces();
+    
         resizeCanvas();
         if (!isOnline) {
             //MEJORA ////////////////////////////////////////////////////////
@@ -411,61 +456,61 @@ document.addEventListener('DOMContentLoaded', () => {
     //MATRICES
 
     const pawnEvalWhite = [
-        [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],
-        [5.0,5.0,5.0,5.0,5.0,5.0,5.0,5.0],
-        [1.0,1.0,2.0,3.0,3.0,2.0,1.0,1.0],
-        [0.5,0.5,1.0,2.5,2.5,1.0,0.5,0.5],
-        [0.0,0.0,0.0,2.0,2.0,0.0,0.0,0.0],
-        [0.5,-0.5,-1.0,0.0,0.0,-1.0,-0.5,0.5],
-        [0.5,1.0,1.0,-2.0,-2.0,1.0,1.0,0.5],
-        [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0],
+        [1.0, 1.0, 2.0, 3.0, 3.0, 2.0, 1.0, 1.0],
+        [0.5, 0.5, 1.0, 2.5, 2.5, 1.0, 0.5, 0.5],
+        [0.0, 0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 0.0],
+        [0.5, -0.5, -1.0, 0.0, 0.0, -1.0, -0.5, 0.5],
+        [0.5, 1.0, 1.0, -2.0, -2.0, 1.0, 1.0, 0.5],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     ];
     const pawnEvalBlack = pawnEvalWhite.slice().reverse();
 
     const knightEval = [
-        [-5.0,-4.0,-3.0,-3.0,-3.0,-3.0,-4.0,-5.0],
-        [-4.0,-2.0,0.0,0.0,0.0,0.0,-2.0,-4.0],
-        [-3.0,0.0,1.0,1.5,1.5,1.0,0.0,-3.0],
-        [-3.0,0.5,1.5,2.0,2.0,1.5,0.5,-3.0],
-        [-3.0,0.0,1.5,2.0,2.0,1.5,0.0,-3.0],
-        [-3.0,0.5,1.0,1.5,1.5,1.0,0.5,-3.0],
-        [-4.0,-2.0,0.0,0.5,0.5,0.0,-2.0,-4.0],
-        [-5.0,-4.0,-3.0,-3.0,-3.0,-3.0,-4.0,-5.0]
+        [-5.0, -4.0, -3.0, -3.0, -3.0, -3.0, -4.0, -5.0],
+        [-4.0, -2.0, 0.0, 0.0, 0.0, 0.0, -2.0, -4.0],
+        [-3.0, 0.0, 1.0, 1.5, 1.5, 1.0, 0.0, -3.0],
+        [-3.0, 0.5, 1.5, 2.0, 2.0, 1.5, 0.5, -3.0],
+        [-3.0, 0.0, 1.5, 2.0, 2.0, 1.5, 0.0, -3.0],
+        [-3.0, 0.5, 1.0, 1.5, 1.5, 1.0, 0.5, -3.0],
+        [-4.0, -2.0, 0.0, 0.5, 0.5, 0.0, -2.0, -4.0],
+        [-5.0, -4.0, -3.0, -3.0, -3.0, -3.0, -4.0, -5.0]
     ];
 
     const bishopEvalWhite = [
-        [-2.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-2.0],
-        [-1.0,0.0,0.0,0.0,0.0,0.0,0.0,-1.0],
-        [-1.0,0.0,0.5,1.0,1.0,0.5,0.0,-1.0],
-        [-1.0,0.5,0.5,1.0,1.0,0.5,0.5,-1.0],
-        [-1.0,0.0,1.0,1.0,1.0,1.0,0.0,-1.0],
-        [-1.0,1.0,1.0,1.0,1.0,1.0,1.0,-1.0],
-        [-1.0,0.5,0.0,0.0,0.0,0.0,0.5,-1.0],
-        [-2.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-2.0]
+        [-2.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -2.0],
+        [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0],
+        [-1.0, 0.0, 0.5, 1.0, 1.0, 0.5, 0.0, -1.0],
+        [-1.0, 0.5, 0.5, 1.0, 1.0, 0.5, 0.5, -1.0],
+        [-1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, -1.0],
+        [-1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0],
+        [-1.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5, -1.0],
+        [-2.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -2.0]
     ];
     const bishopEvalBlack = bishopEvalWhite.slice().reverse();
 
     const rookEvalWhite = [
-        [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],
-        [0.5,1.0,1.0,1.0,1.0,1.0,1.0,0.5],
-        [-0.5,0.0,0.0,0.0,0.0,0.0,0.0,-0.5],
-        [-0.5,0.0,0.0,0.0,0.0,0.0,0.0,-0.5],
-        [-0.5,0.0,0.0,0.0,0.0,0.0,0.0,-0.5],
-        [-0.5,0.0,0.0,0.0,0.0,0.0,0.0,-0.5],
-        [-0.5,0.0,0.0,0.0,0.0,0.0,0.0,-0.5],
-        [0.0,0.0,0.0,0.5,0.5,0.0,0.0,0.0]
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        [0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [-0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.5],
+        [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0]
     ];
     const rookEvalBlack = rookEvalWhite.slice().reverse();
 
     const queenEval = [
-        [-2.0,-1.0,-1.0,-0.5,-0.5,-1.0,-1.0,-2.0],
-        [-1.0,0.0,0.0,0.0,0.0,0.0,0.0,-1.0],
-        [-1.0,0.0,0.5,0.5,0.5,0.5,0.0,-1.0],
-        [-0.5,0.0,0.5,0.5,0.5,0.5,0.0,-0.5],
-        [0.0,0.0,0.5,0.5,0.5,0.5,0.0,-0.5],
-        [-1.0,0.5,0.5,0.5,0.5,0.5,0.0,-1.0],
-        [-1.0,0.0,0.5,0.0,0.0,0.0,0.0,-1.0],
-        [-2.0,-1.0,-1.0,-0.5,-0.5,-1.0,-1.0,-2.0]
+        [-2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0],
+        [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0],
+        [-1.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, -1.0],
+        [-0.5, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, -0.5],
+        [0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.0, -0.5],
+        [-1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.0, -1.0],
+        [-1.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, -1.0],
+        [-2.0, -1.0, -1.0, -0.5, -0.5, -1.0, -1.0, -2.0]
     ];
 
     // estructura tablero
@@ -503,6 +548,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // clic en todo el canvas -------------------------
     function handleCanvasClick(event) {
+
+        if (isAwaitingPromotion || (myPlayerColor && players[currentPlayerIndex].color !== myPlayerColor) || isAiThinking || isAnimating) {
+            return;
+        }
+
         if ((myPlayerColor && players[currentPlayerIndex].color !== myPlayerColor) || isAiThinking || isAnimating) {
             return;
         }
@@ -631,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pieceKey && getPieceColor(pieceKey) === players[currentPlayerIndex].color) {
             selectedPiece = { piece: pieceKey, row, col };
             validMoves = getValidMoves(pieceKey, row, col);
-            updateThreats(); 
+            updateThreats();
         }
     }
 
@@ -666,13 +716,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (moveGuideCheckbox.checked) {
                 // si guia activa, dibuja verde
-                let color = 'rgba(76, 175, 80, 0.5)'; 
+                let color = 'rgba(76, 175, 80, 0.5)';
 
                 // si riesgo activado, dibuja rojo
                 if (isThreatened && threatGuideCheckbox.checked) {
                     color = 'rgba(255, 80, 80, 0.6)'; // Rojo
                 }
-                
+
                 drawCircle(move.col, move.row, color);
 
             } else if (threatGuideCheckbox.checked && isThreatened) {
@@ -692,7 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isValidSquare(newRow, newCol)) {
                     const isThreatened = threatSet.has(`${newRow},${newCol}`);
                     const isEmpty = board[newRow][newCol] === '';
-                    
+
                     if (isEmpty && isThreatened) {
                         drawCircle(newCol, newRow, 'rgba(255, 165, 0, 0.5)'); // Naranja
                     }
@@ -704,12 +754,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateThreats() {
         const opponentColor = players[1 - currentPlayerIndex].color;
         const allOpponentMoves = getAllPossibleMoves(opponentColor, true); // Búsqueda bruta
-        
+
         const threatSet = new Set();
         allOpponentMoves.forEach(move => {
             threatSet.add(`${move.to.row},${move.to.col}`);
         });
-        
+
         opponentThreats = Array.from(threatSet).map(coord => {
             const [row, col] = coord.split(',');
             return { row: parseInt(row), col: parseInt(col) };
@@ -725,6 +775,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!pieceToAnimate) return;
 
         const targetPiece = board[move.to.row][move.to.col];
+
+        if (targetPiece && !isRemoteMove) {
+            const capturerColor = getPieceColor(pieceToAnimate);
+            addCapturedPiece(targetPiece, capturerColor);
+        }
+
         const fromX = move.from.col * squareSize + squareSize / 2;
         const fromY = move.from.row * squareSize + squareSize / 2;
         const toX = move.to.col * squareSize + squareSize / 2;
@@ -1018,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Función auxiliar para piezas deslizantes (Torre, Alfil, Reina)
     function getSlidingMoves(row, col, directions) {
         const moves = [];
-        
+
         if (!board[row] || board[row][col] === '') return moves;
 
         const ownColor = getPieceColor(board[row][col]);
@@ -1188,42 +1244,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return totalScore;
     }
 
-    //Evalúa si un movimiento es seguro
-    function evaluateMoveSafety(move) {
-        const tempPiece = board[move.to.row][move.to.col];
-
-        // Mueve temporalmente la pieza
-        board[move.to.row][move.to.col] = board[move.from.row][move.from.col];
-        board[move.from.row][move.from.col] = '';
-
-        const kingPos = findKing('black');
-        let score = 0;
-
-        // Penaliza si el rey queda en jaque
-        if (isSquareAttacked(kingPos.row, kingPos.col, 'white')) {
-            score -= 1000;
-        }
-
-        // Penaliza si la pieza movida puede ser capturada inmediatamente
-        const opponentMoves = getAllPossibleMoves('white');
-        for (const oppMove of opponentMoves) {
-            if (oppMove.to.row === move.to.row && oppMove.to.col === move.to.col) {
-                score -= getPieceValue(board[move.to.row][move.to.col]);
-            }
-        }
-
-        // Bonifica si se mueve a una casilla segura
-        if (!opponentMoves.some(opp => opp.to.row === move.to.row && opp.to.col === move.to.col)) {
-            score += 50;
-        }
-
-        // Deshacer el movimiento
-        board[move.from.row][move.from.col] = board[move.to.row][move.to.col];
-        board[move.to.row][move.to.col] = tempPiece;
-
-        return score;
-    }
-
     // MEJORA /////////////////////////////////////////////////////////////////////////////
 
     function isSquareAttacked(row, col, attackerColor) {
@@ -1240,7 +1260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 2. Revisa ataques de CABALLO
-        const knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        const knightMoves = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
         for (const move of knightMoves) {
             const newRow = row + move[0];
             const newCol = col + move[1];
@@ -1253,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 3. Revisa ataques de REY
-        const kingMoves = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        const kingMoves = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
         for (const move of kingMoves) {
             const newRow = row + move[0];
             const newCol = col + move[1];
@@ -1264,9 +1284,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         // 4. Revisa ataques "deslizantes" (TORRE, ALFIL, REINA)
-        const slidingDirections = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+        const slidingDirections = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]];
         for (const dir of slidingDirections) {
             let r = row + dir[0];
             let c = col + dir[1];
@@ -1274,10 +1294,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const p = board[r][c];
                 if (p) { // Si encuentra una pieza, la analiza y detiene la búsqueda en esta dirección
                     if (getPieceColor(p) === attackerColor) {
-                        const pType = p.toLowerCase().replace('_promoted','');
-                        if (pType === 'q' || 
-                           ( (dir[0] === 0 || dir[1] === 0) && pType === 'r' ) || 
-                           ( (dir[0] !== 0 && dir[1] !== 0) && pType === 'b') ) {
+                        const pType = p.toLowerCase().replace('_promoted', '');
+                        if (pType === 'q' ||
+                            ((dir[0] === 0 || dir[1] === 0) && pType === 'r') ||
+                            ((dir[0] !== 0 && dir[1] !== 0) && pType === 'b')) {
                             return true; // Encontró un atacante
                         }
                     }
@@ -1296,6 +1316,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // LEVELS -----------------------------------------------------------------------------------------------
 
     //verifica level
+
+    //para fácil default
+    function getEasyMove() {
+        const allMoves = getAllPossibleMoves('black');
+        if (allMoves.length === 0) return null;
+        return allMoves[Math.floor(Math.random() * allMoves.length)];
+    }
 
     function calculateBestMove() {
         let currentSearchDepth;
@@ -1334,96 +1361,116 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function makeMove(from, to, isRemoteMove = false, boardState = null) {
-        // Red
         if (isRemoteMove) {
-            board = boardState; // Sincroniza el tablero
-            
-            // Revisa si el movimiento remoto
+
+            board = boardState.board; // Sincroniza el tablero
+            capturedPieces = boardState.capturedPieces;
+            renderCapturedPieces();
+
             const localKingPos = findKing(myPlayerColor);
             if (!localKingPos || getAllPossibleMoves(myPlayerColor).length === 0) {
-                 // Si mi rey no existe o no tengo movimientos, el otro jugador ganó.
-                 // Invertimos el turno para que el ganador sea el correcto.
-                 currentPlayerIndex = 1 - currentPlayerIndex; 
-                 endGame("Jaque Mate");
-                 return;
+                currentPlayerIndex = 1 - currentPlayerIndex;
+                endGame("Jaque Mate");
+                return;
             }
-
-            // Si la partida continúa, simplemente actualiza el turno y la pantalla
-            selectedPiece = null;
-            validMoves = [];
-            currentPlayerIndex = 1 - currentPlayerIndex;
-            updateTurnIndicator();
-            drawGame();
-            return;
         }
 
-        // local
-        const movingPiece = board[from.row][from.col];
-        //const targetPiece = board[to.row][to.col];
+        //local
 
+        const movingPiece = board[from.row][from.col];
+        
         if (!movingPiece) return;
 
+        const capturedPiece = board[to.row][to.col];
         const pieceType = movingPiece.toLowerCase().replace('_promoted', '');
         const promotionRank = getPieceColor(movingPiece) === 'white' ? 0 : 7;
-        let finalPiece = movingPiece;        
 
-        // if (targetPiece) {
-        //     const capturerColor = getPieceColor(movingPiece); 
-        //     const normalizedPiece = targetPiece.replace("_promoted", "");
-        //     addCapturedPiece(normalizedPiece, capturerColor);
-        // }
-
+        // si es coronación
         if (pieceType === 'p' && to.row === promotionRank) {
-            finalPiece = getPieceColor(movingPiece) === 'white' ? 'q_promoted' : 'Q_promoted';
+            isAwaitingPromotion = true;
+            promotionDetails = { from, to, capturedPiece, color: getPieceColor(movingPiece) };
+            // piezas
+            setupPromotionModal(getPieceColor(movingPiece)); 
+            promotionModal.classList.remove('hidden');
+            return; 
         }
-        
+
+        board[to.row][to.col] = movingPiece;
+        board[from.row][from.col] = '';
+
+        completeMoveExecution({ from, to });
+    }
+
+    // pieza coronación
+    function completePromotion(chosenPiece) {
+        promotionModal.classList.add('hidden');
+        isAwaitingPromotion = false;
+
+        const { from, to, capturedPiece, color } = promotionDetails;
+
+        if (capturedPiece) {
+            addCapturedPiece(capturedPiece, color);
+        }
+
+        const finalPiece = color === 'white'
+            ? chosenPiece.toLowerCase() + '_promoted'
+            : chosenPiece.toUpperCase() + '_promoted';
+
         board[to.row][to.col] = finalPiece;
         board[from.row][from.col] = '';
 
-        // Comprobación de fin de partida
+        completeMoveExecution({ from, to });
+    }
+
+    function setupPromotionModal(color) {
+        const choices = {
+            'q': color === 'white' ? '♕' : '♛',
+            'r': color === 'white' ? '♖' : '♜',
+            'b': color === 'white' ? '♗' : '♝',
+            'n': color === 'white' ? '♘' : '♞'
+        };
+        promotionChoices.forEach(button => {
+            const pieceType = button.dataset.piece;
+            button.textContent = choices[pieceType];
+        });
+    }
+
+    function completeMoveExecution(move) {
+        const from = move.from;
+        const to = move.to;
+
+        // Comprobación
         const opponentColor = players[1 - currentPlayerIndex].color;
         const opponentKingPos = findKing(opponentColor);
 
-        if (!opponentKingPos) {
-            endGame("Jaque Mate");
-            return;
-        }
-
-        const opponentMoves = getAllPossibleMoves(opponentColor);
-
-        if (opponentMoves.length === 0) {
-            const isCheckmate = isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color);
+        if (!opponentKingPos || getAllPossibleMoves(opponentColor).length === 0) {
+            const isCheckmate = opponentKingPos ? isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color) : true;
             endGame(isCheckmate ? "Jaque Mate" : "Ahogado (Empate)");
             return;
         }
-        
-        // continúa...
+
         selectedPiece = null;
         validMoves = [];
         currentPlayerIndex = 1 - currentPlayerIndex;
         updateTurnIndicator();
         drawGame();
 
-        // Envía los datos a la red
+        // red
         if (myPlayerColor && !isRemoteMove) {
             connection.send({ 
                 type: 'move', 
                 move: { from, to, piece: finalPiece },
-                boardState: board 
+                boardState: {
+                    board: board,
+                    capturedPieces: capturedPieces
+                } 
             });
         }
 
-        // Activa IA
+        // activa ia 
         if (players[currentPlayerIndex]?.isAI && !myPlayerColor) {
             triggerAiMove();
         }
-    }
-
-    //para fácil default
-    function getEasyMove() {
-        const allMoves = getAllPossibleMoves('black');
-        if (allMoves.length === 0) return null;
-        return allMoves[Math.floor(Math.random() * allMoves.length)];
     }
 
     // MEJORA /////////////////////////////////////////////////////////////////////////
@@ -1486,12 +1533,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const originalPiece = board[move.to.row][move.to.col];
                 board[move.to.row][move.to.col] = move.from.piece;
                 board[move.from.row][move.from.col] = '';
-                
+
                 const evaluation = minimax(depth - 1, alpha, beta, false);
-                
+
                 board[move.from.row][move.from.col] = move.from.piece;
                 board[move.to.row][move.to.col] = originalPiece;
-                
+
                 bestValue = Math.max(bestValue, evaluation);
                 alpha = Math.max(alpha, evaluation);
                 if (beta <= alpha) {
@@ -1517,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         // Guardado en memoria y retorno del valor FINAL
         transpositionTable[boardHash] = { depth: depth, score: bestValue };
         return bestValue;
@@ -1573,15 +1620,15 @@ document.addEventListener('DOMContentLoaded', () => {
     //sonido
 
     function playMusic(track) {
-       
+
         gameMusic.pause();
         menuMusic.pause();
         menuMusic2.pause();
 
         if (musicCheckbox.checked) {
-            if (track === 'menu') menuMusic.play().catch(() => {});
-            if (track === 'game') gameMusic.play().catch(() => {});
-            if (track === 'win') menuMusic2.play().catch(() => {});
+            if (track === 'menu') menuMusic.play().catch(() => { });
+            if (track === 'game') gameMusic.play().catch(() => { });
+            if (track === 'win') menuMusic2.play().catch(() => { });
         }
     }
 
@@ -1591,6 +1638,14 @@ document.addEventListener('DOMContentLoaded', () => {
             sound.play();
         }
     }
+
+    // Coronación
+    promotionChoices.forEach(button => {
+        button.addEventListener('click', () => {
+            const chosenPiece = button.dataset.piece;
+            completePromotion(chosenPiece);
+        });
+    });
 
     //para check inicial
     function loadSettings() {
