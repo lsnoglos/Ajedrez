@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="assets/icono.png">
 </head>
 
 <body>
@@ -52,26 +53,9 @@
         </div>
     </div>
 
-    <button id="settings-button" style="
-    position: fixed;
-    top: 10px;
-    right: 0px;
-    font-size: 24px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    z-index: 1000;">⚙️</button>
+    <button id="settings-button">⚙️</button>
 
-    <div id="settings-modal" class="hidden" style="
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #335b86;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    z-index: 1001;">
+    <div id="settings-modal" class="hidden">
         <h2>Opciones de juego</h2>
         <label>
             <input type="checkbox" id="music-checkbox">
@@ -93,12 +77,20 @@
     </div>
 
     <div id="game-screen" class="hidden">
+
         <div id="game-info">
-            <div id="player1-info" class="player-info">
-                <span id="player1-name"></span>: <span id="player1-score">0</span> victorias
+            <div id="player1-info" class="player-info-container">
+                <div class="player-details">
+                    <span id="player1-name">Jugador 1</span>: <span id="player1-score">0</span> victorias
+                </div>
+                <div class="captured-pieces" id="player1-captured"></div>
             </div>
-            <div id="player2-info" class="player-info">
-                <span id="player2-name"></span>: <span id="player2-score">0</span> victorias
+
+            <div id="player2-info" class="player-info-container">
+                <div class="player-details">
+                    <span id="player2-name">Jugador 2</span>: <span id="player2-score">0</span> victorias
+                </div>
+                <div class="captured-pieces" id="player2-captured"></div>
             </div>
         </div>
 
@@ -107,33 +99,24 @@
         <div class="controls">
             <button id="main-menu-button">Volver al Menú</button>
         </div>
-
-        <!-- <div id="game-area">
-             <!- Jugador Blancas (arriba) 
-            <div class="player-zone" id="white-zone">
-                <div class="player-header">
-                    <span id="white-player-name">Jugador Blancas</span>
-                </div>
-                <div class="captured-pieces" id="white-captured"></div>
-            </div>
-
-            <!- Tablero 
-            <canvas id="chessBoard" width="400" height="400"></canvas>
-
-            <!- Jugador Negras (abajo) 
-            <div class="player-zone" id="black-zone">
-                <div class="player-header">
-                    <span id="black-player-name">Jugador Negras</span>
-                </div>
-                <div class="captured-pieces" id="black-captured"></div>
-            </div>
-        </div> -->
     </div>
 
     <div id="game-over-modal" class="hidden">
         <div class="modal-content">
             <h2 id="winner-message"></h2>
             <button id="modal-menu-button">Volver al Menú</button>
+        </div>
+    </div>
+
+    <div id="promotion-modal" class="hidden">
+        <div class="modal-content">
+            <h2>Elige una pieza para coronar:</h2>
+            <div class="promotion-choices">
+                <button class="promotion-choice" data-piece="q">♛</button>
+                <button class="promotion-choice" data-piece="r">♜</button>
+                <button class="promotion-choice" data-piece="b">♝</button>
+                <button class="promotion-choice" data-piece="n">♞</button>
+            </div>
         </div>
     </div>
 
@@ -155,17 +138,17 @@
         firebase.initializeApp(firebaseConfig);
     </script>
 
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').then(registration => {
-                console.log('Service Worker registrado con éxito:', registration.scope);
-            }).catch(error => {
-                console.log('Error en el registro del Service Worker:', error);
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('Service Worker registrado con éxito:', registration.scope);
+                }).catch(error => {
+                    console.log('Error en el registro del Service Worker:', error);
+                });
             });
-        });
-    }
-</script>
+        }
+    </script>
 
     <script src="script.js"></script>
 </body>
