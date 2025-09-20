@@ -25,19 +25,72 @@ body {
 #game-info {
     display: flex;
     justify-content: space-between;
-    width: 95%;
+    align-items: flex-start;
+    width: 100%;
     max-width: 600px;
-    margin-bottom: 15px;
-    font-size: 1.2em;
-    font-weight: 700;
+    margin-bottom: 10px;
+    color: #eee;
+    text-shadow: 1px 1px 2px #000;
 }
 
-.player-info.active {
+.player-info-container {
+    flex-basis: 48%;
+    display: flex;
+    flex-direction: column;
+}
+
+#player1-info .player-details {
+    text-align: left;
+}
+#player2-info .player-details {
+    text-align: right;
+}
+
+.player-details {
+    font-size: 1.2em;
+    font-weight: bold;
+    width: 100%;
+}
+
+.player-info-container.active .player-details {
+    color: #ffc107;
+}
+
+.captured-pieces {
+    min-height: 10px;
+    margin-top: 2px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 1px;
+    font-size: 12px;
+    opacity: 0.5;
+    overflow: hidden;
+}
+
+#player1-info .captured-pieces {
+    justify-content: flex-start; 
+    font-size: 12px;
+}
+#player2-info .captured-pieces {
+    justify-content: flex-end;
+    font-size: 12px;
+}
+
+.captured-pieces span {
+    display: inline-block;
+    flex-shrink: 1; 
+    flex-grow: 0; 
+    flex-basis: auto;
+    min-width: 0;
+}
+
+/* .player-info.active {
     color: var(--highlight-color);
     text-shadow: 0 0 5px var(--highlight-color);
     transform: scale(1.05);
     transition: all 0.3s ease;
-}
+} */
 
 h1, h2 {
     font-weight: 300;
@@ -262,12 +315,69 @@ button.confirm-button {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
-#settings-modal.hidden {
-    display: none;
+#settings-button {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    font-size: 24px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 1000;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+#settings-button:hover {
+    background-color: rgba(0, 0, 0, 0.1);
 }
 
 #settings-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #335b86;
+    color: #f0d9b5; /* Mejor contraste para el texto */
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    border: 2px solid #a98865;
+    min-width: 280px; /* Ancho mínimo para que se vea bien */
+}
+
+#settings-modal h2 {
+    margin-top: 0;
+    text-align: center;
+    border-bottom: 1px solid #a98865;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+#settings-modal label {
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+#settings-modal button#close-settings {
     display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 10px;
+    font-size: 1.1em;
+    border-radius: 8px;
+    border: none;
+    background-color: #a98865;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#settings-modal button#close-settings:hover {
+    background-color: #8b6d4d;
 }
 
 /* Captures */
@@ -300,4 +410,51 @@ button.confirm-button {
     justify-content: center;
     gap: 5px;
     font-size: 1.5em;
+}
+
+#promotion-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(40, 60, 80, 0.9);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+    z-index: 1002;
+    border: 2px solid #a98865;
+}
+
+#promotion-modal h2 {
+    margin-top: 0;
+    text-align: center;
+    color: #ebd8b7;
+}
+
+.promotion-choices {
+    display: flex;
+    justify-content: space-around;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.promotion-choice {
+    font-family: Arial, sans-serif;
+    font-size: 200px;
+    color: #333;
+    background: #f0d9b5;
+    border: 2px solid #333;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 90px; 
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+.promotion-choice:hover {
+    transform: scale(1.1);
+    background-color: #fff;
 }
