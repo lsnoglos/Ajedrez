@@ -77,6 +77,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let isAwaitingPromotion = false;
     let promotionDetails = null;
 
+    let isKingInCheck = false;
+    let pinDetails = null;
+
+    let fiftyMoveCounter = 0; //contador
+    let positionHistory = {};
+
     //ONLINE
 
     const startOnlineButton = document.getElementById('start-online-button');
@@ -393,6 +399,8 @@ document.addEventListener('DOMContentLoaded', () => {
         resizeCanvas();
         if (!isOnline) {
             //MEJORA ////////////////////////////////////////////////////////
+            fiftyMoveCounter = 0;
+            positionHistory = {};
             initZobrist(); //prepara memoria IA
             initializeBoard();
             currentPlayerIndex = 0;
@@ -425,6 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (reason === "Ahogado (Empate)") {
             message = "¡Ahogado! La partida es un empate.";
+        }else if (reason === "Empate por regla de 50 movimientos") {
+            message = "Empate: 50 movimientos sin capturas ni peones.";
+        }else if (reason === "Empate por Repetición Triple") {
+            message = "Empate: La misma posición se repitió 3 veces.";
         }
 
         winnerMessage.textContent = message;
@@ -542,8 +554,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawGame() {
         drawBoard();
         drawPieces();
+        highlightCheckedKing();
         highlightSelectedPiece();
         highlightValidMoves();
+        drawPinLine();
     }
 
     // clic en todo el canvas -------------------------
@@ -575,6 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectedPiece = null;
                     validMoves = [];
                     opponentThreats = [];
+                    pinDetails = null;
                 }
                 drawGame();
             }
@@ -674,15 +689,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
     // seleccionar pieza
     function selectPiece(row, col) {
         const pieceKey = board[row][col];
+        pinDetails = null; // limpia clavada anterior
+
         if (pieceKey && getPieceColor(pieceKey) === players[currentPlayerIndex].color) {
             selectedPiece = { piece: pieceKey, row, col };
+            
+            const rawMoves = getRawValidMoves(pieceKey, row, col);
             validMoves = getValidMoves(pieceKey, row, col);
             updateThreats();
+
+            // Si pieza podría moverse pero no tiene movimientos legales, está clavada.
+            if (validMoves.length === 0 && rawMoves.length > 0) {
+                const kingPos = findKing(getPieceColor(pieceKey));
+                if (kingPos) {
+                    // Quitamos pieza, ver quién ataca rey
+                    board[row][col] = ''; 
+                    const attackerPos = findAttacker(kingPos.row, kingPos.col, players[1 - currentPlayerIndex].color);
+                    board[row][col] = pieceKey; // La devolvemos
+
+                    if (attackerPos) {
+                        pinDetails = { attacker: attackerPos, king: kingPos };
+                    }
+                }
+            }
         }
+    }
+
+    function findAttacker(row, col, attackerColor) {
+
+        // Revisa ataques de PEONES
+        const pawnDirection = (attackerColor === 'white') ? 1 : -1;
+        const pawnRow = row + pawnDirection;
+        for (let pawnCol of [col - 1, col + 1]) {
+            if (isValidSquare(pawnRow, pawnCol)) {
+                const p = board[pawnRow][pawnCol];
+                if (p && getPieceColor(p) === attackerColor && p.toLowerCase() === 'p') {
+                    return { row: pawnRow, col: pawnCol };
+                }
+            }
+        }
+
+        // Revisa ataques de CABALLO
+        const knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        for (const move of knightMoves) {
+            const newRow = row + move[0];
+            const newCol = col + move[1];
+            if (isValidSquare(newRow, newCol)) {
+                const p = board[newRow][newCol];
+                if (p && getPieceColor(p) === attackerColor && p.toLowerCase() === 'n') {
+                    return { row: newRow, col: newCol };
+                }
+            }
+        }
+        
+        // Revisa ataques "deslizantes" (TORRE, ALFIL, REINA)
+        const slidingDirections = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+        for (const dir of slidingDirections) {
+            let r = row + dir[0];
+            let c = col + dir[1];
+            while (isValidSquare(r, c)) {
+                const p = board[r][c];
+                if (p) {
+                    if (getPieceColor(p) === attackerColor) {
+                        const pType = p.toLowerCase().replace('_promoted','');
+                        if (pType === 'q' || 
+                           ( (dir[0] === 0 || dir[1] === 0) && pType === 'r' ) || 
+                           ( (dir[0] !== 0 && dir[1] !== 0) && pType === 'b') ) {
+                            return { row: r, col: c };
+                        }
+                    }
+                    break;
+                }
+                r += dir[0];
+                c += dir[1];
+            }
+        }
+
+        return null;
     }
 
     // Resalta camino y pieza
@@ -748,6 +834,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
+        }
+    }
+
+    function highlightCheckedKing() {
+        if (isKingInCheck && threatGuideCheckbox.checked) {
+            const kingPos = findKing(players[currentPlayerIndex].color);
+            if (kingPos) {
+                const x = kingPos.col * squareSize;
+                const y = kingPos.row * squareSize;
+                
+                const centerX = x + squareSize / 2;
+                const centerY = y + squareSize / 2;
+                
+                const gradient = ctx.createRadialGradient(centerX, centerY, squareSize / 4, centerX, centerY, squareSize / 2);
+                gradient.addColorStop(0, 'rgba(255, 0, 0, 0.7)');
+                gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(x, y, squareSize, squareSize);
+            }
+        }
+    }
+
+    function drawPinLine() {
+        if (pinDetails && threatGuideCheckbox.checked && selectedPiece) {
+            const fromX = pinDetails.attacker.col * squareSize + squareSize / 2;
+            const fromY = pinDetails.attacker.row * squareSize + squareSize / 2;
+            const toX = pinDetails.king.col * squareSize + squareSize / 2;
+            const toY = pinDetails.king.row * squareSize + squareSize / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.lineTo(toX, toY);
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
+            ctx.lineWidth = 5;
+            ctx.stroke();
         }
     }
 
@@ -1385,6 +1507,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const pieceType = movingPiece.toLowerCase().replace('_promoted', '');
         const promotionRank = getPieceColor(movingPiece) === 'white' ? 0 : 7;
 
+        if (pieceType === 'p' || capturedPiece) {
+            fiftyMoveCounter = 0;
+        } else {
+            fiftyMoveCounter++;
+        }
+
         // si es coronación
         if (pieceType === 'p' && to.row === promotionRank) {
             isAwaitingPromotion = true;
@@ -1398,7 +1526,7 @@ document.addEventListener('DOMContentLoaded', () => {
         board[to.row][to.col] = movingPiece;
         board[from.row][from.col] = '';
 
-        completeMoveExecution({ from, to });
+        completeMoveExecution({ from, to }, isRemoteMove, movingPiece);
     }
 
     // pieza coronación
@@ -1406,7 +1534,7 @@ document.addEventListener('DOMContentLoaded', () => {
         promotionModal.classList.add('hidden');
         isAwaitingPromotion = false;
 
-        const { from, to, capturedPiece, color } = promotionDetails;
+        const { from, to, capturedPiece, color, isRemoteMove } = promotionDetails;
 
         if (capturedPiece) {
             addCapturedPiece(capturedPiece, color);
@@ -1419,7 +1547,8 @@ document.addEventListener('DOMContentLoaded', () => {
         board[to.row][to.col] = finalPiece;
         board[from.row][from.col] = '';
 
-        completeMoveExecution({ from, to });
+        promotionDetails = null;
+        completeMoveExecution({ from, to }, isRemoteMove, finalPiece);
     }
 
     function setupPromotionModal(color) {
@@ -1435,39 +1564,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function completeMoveExecution(move) {
-        const from = move.from;
-        const to = move.to;
+    function completeMoveExecution(move, isRemoteMove = false, finalPiece = null) {
 
-        // Comprobación
-        const opponentColor = players[1 - currentPlayerIndex].color;
-        const opponentKingPos = findKing(opponentColor);
-
-        if (!opponentKingPos || getAllPossibleMoves(opponentColor).length === 0) {
-            const isCheckmate = opponentKingPos ? isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color) : true;
-            endGame(isCheckmate ? "Jaque Mate" : "Ahogado (Empate)");
+        const boardHash = getBoardHash();
+        positionHistory[boardHash] = (positionHistory[boardHash] || 0) + 1;
+        
+        // empate
+        if (fiftyMoveCounter >= 100) { // 50 movimientos
+            endGame("Empate por regla de 50 movimientos");
+            return;
+        }
+        if (positionHistory[boardHash] >= 3) {
+            endGame("Empate por Repetición Triple");
             return;
         }
 
+        if (!isRemoteMove) { // La lógica de fin de juego solo la decide el jugador local
+            const opponentColor = players[1 - currentPlayerIndex].color;
+            const opponentKingPos = findKing(opponentColor);
+
+            if (!opponentKingPos || getAllPossibleMoves(opponentColor).length === 0) {
+                const isCheckmate = opponentKingPos ? isSquareAttacked(opponentKingPos.row, opponentKingPos.col, players[currentPlayerIndex].color) : true;
+                endGame(isCheckmate ? "Jaque Mate" : "Ahogado (Empate)");
+                return;
+            }
+        }
+
+        const from = move.from;
+        const to = move.to;
+
         selectedPiece = null;
         validMoves = [];
+        pinnedMoves = []; // Limpia clavadas
         currentPlayerIndex = 1 - currentPlayerIndex;
+
+        const newKingPos = findKing(players[currentPlayerIndex].color);
+        if (newKingPos) {
+            isKingInCheck = isSquareAttacked(newKingPos.row, newKingPos.col, players[1 - currentPlayerIndex].color);
+        } else {
+            isKingInCheck = false;
+        }
+
         updateTurnIndicator();
         drawGame();
 
         // red
         if (myPlayerColor && !isRemoteMove) {
-            connection.send({ 
-                type: 'move', 
-                move: { from, to, piece: finalPiece },
-                boardState: {
-                    board: board,
-                    capturedPieces: capturedPieces
-                } 
+        const pieceToSend = finalPiece || board[move.to.row][move.to.col];
+        connection.send({
+            type: 'move',
+            move: { from: move.from, to: move.to, piece: pieceToSend },
+            boardState: {
+                board: board,
+                capturedPieces: capturedPieces
+            }
             });
-        }
+         }
 
-        // activa ia 
         if (players[currentPlayerIndex]?.isAI && !myPlayerColor) {
             triggerAiMove();
         }
