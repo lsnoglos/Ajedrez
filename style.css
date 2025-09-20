@@ -220,7 +220,7 @@ button {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(47, 85, 155, 0.198);
+    background-color: rgba(47, 85, 155, 0.39);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -230,7 +230,7 @@ button {
 }
 
 .modal-content {
-    background: #1d3d5c29;
+    background: #1d3d5c64;
     padding: 40px 60px;
     border-radius: 10px;
     text-align: center;
@@ -240,7 +240,7 @@ button {
 
 .modal-content h2 {
     margin-top: 0;
-    color: #aed5fc67;
+    color: #304356e0;
     font-size: 2em;
     text-shadow: 0 0 8px var(--accent-color);
 }
