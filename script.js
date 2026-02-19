@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let fiftyMoveCounter = 0; //contador
     let positionHistory = {};
+    const GAME_STATE_KEY = 'chessGameState';
 
     //ONLINE
 
@@ -227,6 +228,65 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveScores() {
         if (players.length === 2 && !players[0].isAI && !players[1].isAI) {
             localStorage.setItem('chessPlayers', JSON.stringify(players));
+        }
+    }
+
+    function clearSavedGameState() {
+        localStorage.removeItem(GAME_STATE_KEY);
+    }
+
+    function saveGameState() {
+        if (!players.length || !board.length || myPlayerColor) return;
+
+        const gameState = {
+            players,
+            currentPlayerIndex,
+            board,
+            capturedPieces,
+            isAiActive,
+            aiDifficulty,
+            fiftyMoveCounter,
+            positionHistory
+        };
+
+        localStorage.setItem(GAME_STATE_KEY, JSON.stringify(gameState));
+    }
+
+    function loadSavedGameState() {
+        const rawState = localStorage.getItem(GAME_STATE_KEY);
+        if (!rawState) return false;
+
+        try {
+            const gameState = JSON.parse(rawState);
+            if (!gameState?.players || !gameState?.board) return false;
+
+            players = gameState.players;
+            currentPlayerIndex = gameState.currentPlayerIndex ?? 0;
+            board = gameState.board;
+            capturedPieces = gameState.capturedPieces || { white: [], black: [] };
+            isAiActive = gameState.isAiActive || false;
+            aiDifficulty = gameState.aiDifficulty || 'expert';
+            fiftyMoveCounter = gameState.fiftyMoveCounter || 0;
+            positionHistory = gameState.positionHistory || {};
+
+            selectedPiece = null;
+            validMoves = [];
+
+            startScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+
+            renderCapturedPieces();
+            updateScoreboard();
+            resizeCanvas();
+            drawGame();
+            updateTurnIndicator();
+            playMusic('game');
+
+            return true;
+        } catch (error) {
+            console.error('No se pudo cargar la partida guardada:', error);
+            clearSavedGameState();
+            return false;
         }
     }
 
@@ -380,6 +440,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         playMusic('game');
 
+        if (!isOnline) {
+            clearSavedGameState();
+        }
+
         isAiActive = vsAI;
         if (!isOnline) { // Solo lee la dificultad si no es online
             aiDifficulty = aiLevelSelect.value;
@@ -387,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startScreen.classList.add('hidden');
         gameScreen.classList.remove('hidden');
         setupPlayers(isOnline); // Pasa la bandera online
-        initGame();
+        initGame(isOnline);
     }
 
     function initGame(isOnline = false) {
@@ -415,6 +479,9 @@ document.addEventListener('DOMContentLoaded', () => {
         validMoves = [];
         drawGame();
         updateTurnIndicator();
+        if (!isOnline) {
+            saveGameState();
+        }
     }
 
     function endGame(reason) {
@@ -441,6 +508,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         winnerMessage.textContent = message;
         updateScoreboard();
+        saveGameState();
         gameOverModal.classList.remove('hidden');
     }
 
@@ -1663,6 +1731,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (players[currentPlayerIndex]?.isAI && !myPlayerColor) {
             triggerAiMove();
         }
+
+        saveGameState();
     }
 
     // MEJORA /////////////////////////////////////////////////////////////////////////
@@ -1901,6 +1971,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetScoresStartButton.addEventListener('click', () => {
         if (confirm("¿Borrar todas las puntuaciones de 2 jugadores?")) {
             localStorage.removeItem('chessPlayers');
+            clearSavedGameState();
             //displayScoresSummary();
         }
     });
@@ -1909,7 +1980,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', resizeCanvas);
 
     createBackgroundPieces();
-    showStartScreen();
-    resizeCanvas();
     loadSettings();
+
+    if (!loadSavedGameState()) {
+        showStartScreen();
+        resizeCanvas();
+    }
 });
