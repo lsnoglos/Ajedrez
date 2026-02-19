@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawPieces() {
-        ctx.font = `${squareSize * 0.8}px Arial`;
+        ctx.font = `${squareSize * 0.8}px "Segoe UI Symbol", "Noto Sans Symbols", "Arial Unicode MS", Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
@@ -640,10 +640,47 @@ document.addEventListener('DOMContentLoaded', () => {
         const pieceType = normalPieceKey.toLowerCase();
         const pieceSymbol = pieces[normalPieceKey];
         const color = getPieceColor(normalPieceKey);
+        const pieceRadius = squareSize * 0.24;
+
+        ctx.save();
+
+        // Base circular para separar visualmente la pieza del tablero
+        const baseGradient = ctx.createRadialGradient(
+            x - pieceRadius * 0.25,
+            y - pieceRadius * 0.35,
+            pieceRadius * 0.2,
+            x,
+            y,
+            pieceRadius * 1.35
+        );
+
+        if (color === 'white') {
+            baseGradient.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
+            baseGradient.addColorStop(0.7, 'rgba(232, 232, 232, 0.86)');
+            baseGradient.addColorStop(1, 'rgba(160, 160, 160, 0.85)');
+        } else {
+            baseGradient.addColorStop(0, 'rgba(95, 95, 95, 0.95)');
+            baseGradient.addColorStop(0.75, 'rgba(30, 30, 30, 0.92)');
+            baseGradient.addColorStop(1, 'rgba(5, 5, 5, 0.95)');
+        }
+
+        ctx.fillStyle = baseGradient;
+        ctx.beginPath();
+        ctx.ellipse(x, y + squareSize * 0.03, pieceRadius * 1.06, pieceRadius, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Brillo superior para sensación 3D
+        ctx.fillStyle = color === 'white' ? 'rgba(255, 255, 255, 0.62)' : 'rgba(255, 255, 255, 0.17)';
+        ctx.beginPath();
+        ctx.ellipse(x - squareSize * 0.05, y - squareSize * 0.05, pieceRadius * 0.58, pieceRadius * 0.34, -0.28, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.fillStyle = (color === 'black') ? '#000000' : '#FFFFFF';
         ctx.strokeStyle = (color === 'black') ? '#FFFFFF' : '#000000';
         ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.38)';
+        ctx.shadowBlur = squareSize * 0.08;
+        ctx.shadowOffsetY = squareSize * 0.03;
 
         if (isPromoted && pieceType === 'q') {
             // Reina coronada
@@ -656,6 +693,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ctx.strokeText(pieceSymbol, x, y);
         ctx.fillText(pieceSymbol, x, y);
+
+        ctx.restore();
     }
 
     function createBackgroundPieces() {
