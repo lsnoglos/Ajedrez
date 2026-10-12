@@ -1554,23 +1554,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculateBestMove() {
-        let currentSearchDepth;
+        const legalMoves = getAllPossibleMoves('black');
+        if (legalMoves.length === 0) return null;
 
-        switch (aiDifficulty) {
-            case 'easy':
-                const easyMoves = getAllPossibleMoves('black');
-                if (easyMoves.length === 0) return null;
-                return easyMoves[Math.floor(Math.random() * easyMoves.length)];
+        // La configuración Elo vive en js/elo-config.js, fuera del motor.
+        const level = window.ChessEloConfig
+            ? window.ChessEloConfig.getLevel(aiDifficulty)
+            : { depth: 2, blunderChance: 0.08 };
 
-            case 'intermediate':
-                return getExpertMove(0)
-
-            case 'expert':
-                return getExpertMove(1)
-
-            default:
-                return getEasyMove();
+        // En niveles iniciales se simulan errores controlados, nunca movimientos ilegales.
+        if (Math.random() < level.blunderChance) {
+            return legalMoves[Math.floor(Math.random() * legalMoves.length)];
         }
+
+        // La profundidad se ajusta al nivel. Se limita a 4 con el motor actual
+        // para evitar bloquear el navegador mientras se optimiza la búsqueda.
+        const depth = Math.max(1, Math.min(4, level.depth));
+        return getExpertMove(depth);
     }
 
     //movimiento AI
