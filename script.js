@@ -1147,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const player1Name = storedPlayers ? storedPlayers[0].name : "Jugador 1";
                 players = [
                     { name: player1Name, score: 0, color: 'white', isAI: false },
-                    { name: `PC (${aiDifficulty})`, score: 0, color: 'black', isAI: true }
+                    { name: `PC (${window.ChessEloConfig ? window.ChessEloConfig.getLevel(aiDifficulty).elo + ' Elo' : aiDifficulty})`, score: 0, color: 'black', isAI: true }
                 ];
             } else {
                 if (storedPlayers) {
@@ -1573,19 +1573,64 @@ document.addEventListener('DOMContentLoaded', () => {
         return getExpertMove(depth);
     }
 
-    //movimiento AI
+    // Stockfish calcula en un Web Worker para mantener fluida la interfaz.
     function triggerAiMove() {
         isAiThinking = true;
-        setTimeout(() => {
-            const bestMove = calculateBestMove();
-            if (bestMove) {
-                // La IA llama a la animación
-                animateMove(bestMove);
-            } else {
+
+        const playMove = bestMove => {
+            if (!bestMove) {
+                isAiThinking = false;
                 alert("La IA no tiene movimientos. ¿Ahogado?");
                 showStartScreen();
+                return;
             }
+            animateMove(bestMove);
+            // animateMove mantiene bloqueada la interacción durante la animación.
             isAiThinking = false;
+        };
+
+        setTimeout(() => {
+            const level = window.ChessEloConfig
+                ? window.ChessEloConfig.getLevel(aiDifficulty)
+                : null;
+
+            if (window.StockfishAdapter && level) {
+                window.StockfishAdapter.findBestMove(board, level)
+                    .then(uciMove => {
+                        if (!uciMove || uciMove.length < 4) {
+                            playMove(calculateBestMove());
+                            return;
+                        }
+
+                        const fromCol = uciMove.charCodeAt(0) - 97;
+                        const fromRow = 8 - Number(uciMove[1]);
+                        const toCol = uciMove.charCodeAt(2) - 97;
+                        const toRow = 8 - Number(uciMove[3]);
+                        if (fromRow < 0 || fromRow > 7 || toRow < 0 || toRow > 7 ||
+                            fromCol < 0 || fromCol > 7 || toCol < 0 || toCol > 7) {
+                            playMove(calculateBestMove());
+                            return;
+                        }
+
+                        const movingPiece = board[fromRow]?.[fromCol];
+                        if (!movingPiece) {
+                            playMove(calculateBestMove());
+                            return;
+                        }
+
+                        playMove({
+                            from: { row: fromRow, col: fromCol, piece: movingPiece },
+                            to: { row: toRow, col: toCol }
+                        });
+                    })
+                    .catch(error => {
+                        console.warn('Stockfish no está disponible; se usará el motor anterior.', error);
+                        playMove(calculateBestMove());
+                    });
+                return;
+            }
+
+            playMove(calculateBestMove());
         }, 50);
     }
 

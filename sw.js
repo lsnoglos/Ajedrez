@@ -1,6 +1,6 @@
 // sw.js (Service Worker)
 
-const CACHE_NAME = 'ajedrez-lr-v2'; // Cambia v1 a v2, v3, etc., cada vez que actualices tus archivos
+const CACHE_NAME = 'ajedrez-lr-v3'; // Cambia v1 a v2, v3, etc., cada vez que actualices tus archivos
 
 // Lista de archivos esenciales para que el juego funcione offline
 const urlsToCache = [
@@ -9,6 +9,8 @@ const urlsToCache = [
     'style.css',
     'js/elo-config.js',
     'js/elo-selector.js',
+    'js/stockfish-adapter.js',
+    'js/stockfish-worker-loader.js',
     'script.js',
     // IMPORTANTE: Añade aquí la ruta a TODOS tus assets (sonidos, imágenes, etc.)
     'assets/back_audio1.mp3',
