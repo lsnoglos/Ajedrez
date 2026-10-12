@@ -14,8 +14,8 @@
         { id: 'elo-1600', elo: 1600, label: 'Intermedio IV', category: 'Intermedio', depth: 3, blunderChance: 0.025, thinkTimeMs: 900 },
         { id: 'elo-1800', elo: 1800, label: 'Experto I', category: 'Experto', depth: 4, blunderChance: 0.015, thinkTimeMs: 1200 },
         { id: 'elo-2000', elo: 2000, label: 'Experto II', category: 'Experto', depth: 4, blunderChance: 0.008, thinkTimeMs: 1600 },
-        { id: 'elo-2200', elo: 2200, label: 'Experto III', category: 'Experto', depth: 5, blunderChance: 0.003, thinkTimeMs: 2200 },
-        { id: 'elo-2400', elo: 2400, label: 'Experto IV', category: 'Experto', depth: 6, blunderChance: 0, thinkTimeMs: 3000 }
+        { id: 'elo-2200', elo: 2200, label: 'Experto III', category: 'Experto', depth: 4, blunderChance: 0.003, thinkTimeMs: 2200 },
+        { id: 'elo-2400', elo: 2400, label: 'Experto IV', category: 'Experto', depth: 4, blunderChance: 0, thinkTimeMs: 3000 }
     ];
 
     function getLevel(id) {
