@@ -55,11 +55,13 @@
                     fenRow += empty;
                     empty = 0;
                 }
-                const piece = String(rawPiece).replace('_promoted', '');
+                const raw = String(rawPiece);
+                const isBlackPiece = raw[0] === raw[0].toUpperCase();
+                const piece = raw.replace('_promoted', '');
                 // En este juego las mayúsculas son negras y las minúsculas son blancas;
                 // FEN usa el convenio contrario.
-                const lower = piece.toLowerCase();
-                const fenPiece = piece === piece.toUpperCase() ? lower : lower.toUpperCase();
+                const lower = piece[0].toLowerCase();
+                const fenPiece = isBlackPiece ? lower : lower.toUpperCase();
                 fenRow += fenPiece;
             });
             if (empty) fenRow += empty;
