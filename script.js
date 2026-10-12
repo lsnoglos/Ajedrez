@@ -189,6 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // MEJORAS /////////////////////////////////////////////////////////////////////////////////////////////////
 
     let transpositionTable = {}; // memoria IA
+    let aiSearchNodes = 0;
+    let aiSearchNodeBudget = 1200;
+    const MAX_QUIESCENCE_PLY = 4;
     let zobristKeys = {};      // claves piezas / casillas
     let moveHistory = [];      // registra movimientos
 
@@ -1367,7 +1370,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     //pide movimiento propio
-    function quiescenceSearch(alpha, beta, isMaximizingPlayer) {
+    function quiescenceSearch(alpha, beta, isMaximizingPlayer, ply = 0) {
+        // Evita que una secuencia larga de capturas dispare el tiempo de cálculo.
+        if (ply >= MAX_QUIESCENCE_PLY || aiSearchNodes >= aiSearchNodeBudget) return evaluateBoard();
+        aiSearchNodes++;
         let standPat = evaluateBoard();
 
         if (isMaximizingPlayer) {
@@ -1388,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
             board[move.to.row][move.to.col] = move.from.piece;
             board[move.from.row][move.from.col] = '';
 
-            let score = quiescenceSearch(alpha, beta, !isMaximizingPlayer);
+            let score = quiescenceSearch(alpha, beta, !isMaximizingPlayer, ply + 1);
 
             board[move.from.row][move.from.col] = move.from.piece;
             board[move.to.row][move.to.col] = originalPiece;
@@ -1570,6 +1576,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // La profundidad se ajusta al nivel. Se limita a 4 con el motor actual
         // para evitar bloquear el navegador mientras se optimiza la búsqueda.
         const depth = Math.max(1, Math.min(4, level.depth));
+        aiSearchNodeBudget = level.nodeBudget || 1200;
+        aiSearchNodes = 0;
         return getExpertMove(depth);
     }
 
@@ -1747,6 +1755,7 @@ document.addEventListener('DOMContentLoaded', () => {
         allMoves.sort((a, b) => getPieceValue(board[b.to.row][b.to.col]) - getPieceValue(board[a.to.row][a.to.col]));
 
         for (const move of allMoves) {
+            if (aiSearchNodes >= aiSearchNodeBudget && bestMoves.length) break;
             const originalPiece = board[move.to.row][move.to.col];
             board[move.to.row][move.to.col] = move.from.piece;
             board[move.from.row][move.from.col] = '';
@@ -1768,6 +1777,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function minimax(depth, alpha, beta, isMaximizingPlayer) {
+        aiSearchNodes++;
+        if (aiSearchNodes >= aiSearchNodeBudget) return evaluateBoard();
         const boardHash = getBoardHash();
         if (transpositionTable[boardHash] && transpositionTable[boardHash].depth >= depth) {
             return transpositionTable[boardHash].score;
