@@ -10,6 +10,7 @@ const urlsToCache = [
     'js/elo-config.js',
     'js/elo-selector.js',
     'js/stockfish-adapter.js',
+    'js/stockfish-worker-loader.js',
     'script.js',
     // IMPORTANTE: Añade aquí la ruta a TODOS tus assets (sonidos, imágenes, etc.)
     'assets/back_audio1.mp3',
