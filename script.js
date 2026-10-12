@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let transpositionTable = {}; // memoria IA
     let aiSearchNodes = 0;
     let aiSearchNodeBudget = 1200;
-    const MAX_QUIESCENCE_PLY = 4;
+    const MAX_QUIESCENCE_PLY = 3;
     let zobristKeys = {};      // claves piezas / casillas
     let moveHistory = [];      // registra movimientos
 
