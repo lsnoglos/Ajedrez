@@ -5,7 +5,7 @@
 (function (global) {
     'use strict';
 
-    const ENGINE_URL = 'https://cdn.jsdelivr.net/npm/stockfish@19.0.1/bin/stockfish-19-lite-single.js';
+    const ENGINE_URL = 'js/stockfish-worker-loader.js';
     let worker = null;
     let ready = false;
     let initializing = false;
